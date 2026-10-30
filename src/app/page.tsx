@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConstraintPanel from "@/components/ConstraintPanel";
 import LaptopCard from "@/components/LaptopCard";
 import RelaxNotice from "@/components/RelaxNotice";
 import RequirementInput from "@/components/RequirementInput";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
+import TranslationStatus from "@/components/TranslationStatus";
 import { dictionary, type Constraints } from "@/data/dictionary";
 import { laptops } from "@/data/laptops";
-import { match, parseRequirement, type ParseResult } from "@/lib/match";
+import { probeProvider, requestParse } from "@/lib/ai/api-client";
+import type { Trace, UnifiedParseResult } from "@/lib/ai/types";
+import { match } from "@/lib/match";
 
 const EXAMPLES = [
   "预算 6000 以内，主要写代码，屏幕要看得清，最好轻一点",
@@ -20,22 +23,79 @@ const EXAMPLES = [
 
 /**
  * 页面编排层：只管状态，不管样式。
- * 输入 → 翻译成约束 → 规则引擎筛选 → 展示（含自动放宽提示）。
+ *
+ * 流程：输入 → POST /api/parse（AI 翻译，失败自动降级）→ 规则引擎筛选 → 展示。
+ * 这里没有任何 AI 相关的业务逻辑，只有一次网络请求和几个状态位。
  */
 export default function Home() {
   const [text, setText] = useState("");
+  const [userKey, setUserKey] = useState("");
   const [constraints, setConstraints] = useState<Constraints>({});
-  const [traces, setTraces] = useState<ParseResult["traces"]>([]);
+  const [traces, setTraces] = useState<Trace[]>([]);
+  const [result, setResult] = useState<UnifiedParseResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  /** 上一次请求的取消器：用户连点示例时，旧请求立刻作废 */
+  const inFlight = useRef<AbortController | null>(null);
+
+  // 进页面探一次：后端到底有没有配 Key
+  useEffect(() => {
+    let alive = true;
+    probeProvider().then((configured) => {
+      if (alive) setDemoMode(!configured);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 条件一变就重算。match 是纯函数，AI 完全不参与这一步。
   const outcome = useMemo(() => match(constraints), [constraints]);
 
-  function runParse(input: string) {
-    const parsed = parseRequirement(input);
-    setConstraints(parsed.constraints);
-    setTraces(parsed.traces);
-    setSubmitted(true);
-  }
+  const runParse = useCallback(
+    async (input: string) => {
+      if (!input.trim()) {
+        setError("先说一句你想用这台电脑做什么吧");
+        return;
+      }
+
+      // 取消上一次还没回来的请求，避免“后发先至”把旧结果盖上来
+      inFlight.current?.abort();
+      const controller = new AbortController();
+      inFlight.current = controller;
+
+      setLoading(true);
+      setError(null);
+
+      const res = await requestParse(input, {
+        userKey,
+        signal: controller.signal,
+      });
+
+      // 如果这次请求已经被后来的请求取代，直接丢弃它的结果
+      if (controller.signal.aborted) return;
+
+      setLoading(false);
+
+      if (!res.ok) {
+        setError(
+          res.error.retryAfterSec
+            ? `${res.error.message}（还需要等 ${res.error.retryAfterSec} 秒）`
+            : res.error.message
+        );
+        return;
+      }
+
+      setResult(res.data);
+      setConstraints(res.data.constraints);
+      setTraces(res.data.traces);
+      setSubmitted(true);
+    },
+    [userKey]
+  );
 
   function removeConstraint(key: keyof Constraints) {
     setConstraints((prev) => {
@@ -46,9 +106,14 @@ export default function Home() {
   }
 
   function reset() {
+    inFlight.current?.abort();
+    inFlight.current = null;
     setText("");
     setConstraints({});
     setTraces([]);
+    setResult(null);
+    setError(null);
+    setLoading(false);
     setSubmitted(false);
   }
 
@@ -65,7 +130,15 @@ export default function Home() {
           onParse={runParse}
           onReset={reset}
           examples={EXAMPLES}
+          loading={loading}
+          error={error}
+          userKey={userKey}
+          onUserKeyChange={setUserKey}
         />
+
+        {result && (
+          <TranslationStatus result={result} demoMode={demoMode} />
+        )}
 
         {submitted && (
           <ConstraintPanel
@@ -90,8 +163,8 @@ export default function Home() {
                 : `预算内 0 台 · 以下是超预算、但其他条件都满足的 ${outcome.overBudget.length} 台`}
             </h2>
             <div className="space-y-3">
-              {[...outcome.overBudget, ...outcome.results].map((result) => (
-                <LaptopCard key={result.laptop.id} result={result} />
+              {[...outcome.overBudget, ...outcome.results].map((item) => (
+                <LaptopCard key={item.laptop.id} result={item} />
               ))}
             </div>
           </section>

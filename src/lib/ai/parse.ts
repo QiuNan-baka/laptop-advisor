@@ -14,25 +14,11 @@ import type { Constraints } from "@/data/dictionary";
 import { callProvider, AiCallError } from "./client";
 import { resolveProvider } from "./provider";
 import type { AiResponse } from "./schema";
+import type { ParseSource, UnifiedParseResult } from "./types";
 
-/** 这次翻译是谁干的 —— 直接显示给用户看 */
-export type ParseSource = "builtin" | "user_key" | "rule";
-
-export interface UnifiedParseResult {
-  ok: boolean;
-  /** builtin=用了服务端 Key，user_key=用了访客自己的 Key，rule=降级到词典 */
-  source: ParseSource;
-  constraints: Constraints;
-  traces: { label: string; explain: string; keys: (keyof Constraints)[] }[];
-  confidence: number;
-  questions: string[];
-  /** 降级时的原因，会显示在界面上（对评委是「安全可控」的实证） */
-  fallbackReason?: string;
-  /** 本次调用用的模型名，便于在界面标注「由 deepseek-chat 翻译」 */
-  model?: string;
-  /** 耗时，毫秒 */
-  elapsedMs: number;
-}
+// 这几个类型前后端都要用，统一定义在 types.ts（那里不依赖任何 Node API）；
+// 在这里转出去，服务端代码继续从 "./parse" 取即可，不必改 import 路径。
+export type { ParseSource, UnifiedParseResult } from "./types";
 
 export interface ParseOptions {
   /** 用户自带的 Key，来自请求头。为空则用服务端配置。 */
