@@ -13,7 +13,7 @@
  *   4. 输入长度上限，防止超长文本烧 token
  */
 
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { parseWithFallback } from "@/lib/ai/parse";
 import { checkRateLimit, clientKeyFrom } from "@/lib/ai/rate-limit";
 import { hasConfiguredProvider } from "@/lib/ai/provider";
@@ -21,9 +21,9 @@ import { hasConfiguredProvider } from "@/lib/ai/provider";
 /** 用户输入上限：正常人描述需求不会超过这个长度 */
 const MAX_INPUT_LEN = 500;
 
-export const runtime = "nodejs";
-/** 每次请求都要真跑模型，禁止任何缓存 */
-export const dynamic = "force-dynamic";
+// 注意：本项目 next.config.ts 打开了 cacheComponents，
+// 这个模式下 `export const dynamic / runtime / revalidate / fetchCache` 一律不允许出现。
+// 需要「每次请求都真跑」的地方，改为调用 next/server 的 connection()。
 
 interface ParseRequestBody {
   text?: unknown;
@@ -85,8 +85,14 @@ export async function POST(request: Request) {
   });
 }
 
-/** GET：给前端探测「现在有没有配 Key」用，不含任何敏感信息 */
+/**
+ * GET：给前端探测「现在有没有配 Key」用，不含任何敏感信息。
+ *
+ * 必须显式 connection()：cacheComponents 模式下 GET 处理器默认会被静态预渲染，
+ * 那样 configured 会被固化成构建那一刻的值，改了 .env.local 也不生效。
+ */
 export async function GET() {
+  await connection();
   return NextResponse.json(
     { configured: hasConfiguredProvider() },
     { headers: { "Cache-Control": "no-store" } }
