@@ -33,14 +33,46 @@
 ```
 src/
 ├── app/
-│   ├── page.tsx           主界面：输入框 / 条件胶囊 / 翻译依据 / 结果卡片
-│   └── layout.tsx         全局布局与元信息
+│   ├── page.tsx             页面编排层：只负责状态与组件顺序
+│   ├── layout.tsx           全局布局与元信息
+│   └── api/parse/route.ts   后端路由：人话 → 约束（Key 只活在这里）
+├── components/
+│   ├── SiteHeader.tsx       页头
+│   ├── RequirementInput.tsx 输入区 + 示例说法
+│   ├── ConstraintPanel.tsx  约束胶囊（可逐条删除）+ 翻译依据
+│   ├── RelaxNotice.tsx      空结果自动放宽提示
+│   ├── LaptopCard.tsx       机型卡片
+│   └── SiteFooter.tsx       页脚
 ├── data/
-│   ├── laptops.ts         机型库（13 台真实参数，含 ppi / 重量 / 续航等）
-│   └── dictionary.ts      需求词典（15 条：人话 → 参数门槛 + 展示给用户的翻译依据）
+│   ├── laptops.ts           机型库（13 台真实参数，含 ppi / 重量 / 续航等）
+│   └── dictionary.ts        需求词典（15 条：人话 → 参数门槛 + 翻译依据）
 └── lib/
-    └── match.ts           规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
+    ├── match.ts             规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
+    └── ai/
+        ├── provider.ts      供应商适配：5 家预置 + 任意 OpenAI 兼容端点
+        ├── prompt.ts        Prompt A：字段语义 + 反例 + 强制 JSON
+        ├── schema.ts        Zod 契约 + 现实边界（越界直接拒收）
+        ├── client.ts        调用 + 超时 + 校验失败带错重试
+        ├── parse.ts         三层降级：内置 Key → 访客 Key → 本地词典
+        └── rate-limit.ts    IP 限流，防止接口被当成免费中转站
 ```
+
+### AI 接口可替换设计
+
+所有供应商都走 **OpenAI 兼容的 `/chat/completions` 协议**，所以换任何一家只改 `.env.local`，不动一行代码：
+
+| `AI_PROVIDER` | 供应商 | 默认模型 |
+|---|---|---|
+| `deepseek`（默认） | DeepSeek | deepseek-chat |
+| `zhipu` | 智谱 GLM | glm-4-flash |
+| `moonshot` | Kimi | moonshot-v1-8k |
+| `siliconflow` | 硅基流动 | Qwen2.5-7B |
+| `ollama` | 本地 Ollama | qwen2.5:7b |
+| `custom` | 任意自建端点 | 自己填 |
+
+想接自己公司的网关、本地 vLLM、或一个还没预置的新厂商，选 `custom` 并填 `AI_BASE_URL` / `AI_MODEL` 即可。
+
+**访客也可以用自己的 Key 试用**：前端在请求头带 `x-user-ai-key`，该 Key 只在这一次请求的内存里存在——不写库、不写日志、不回显。
 
 ### 关键设计决策
 
@@ -56,6 +88,11 @@ src/
 **③ 无 Key 也能跑通全流程**
 检测不到 API Key 时自动降级为本地关键词词典解析，界面与筛选完全正常。
 评委拿到项目后无需任何配置就能看到完整效果。
+
+**④ Key 永不出浏览器**
+调用链是「浏览器 → 本项目后端路由 → 大模型 → 后端路由 → 浏览器」，
+API Key 只存在于服务端进程的内存与 `.env.local`，前端代码里搜不到任何 Key 字面量。
+接口还带每 IP 每分钟 8 次的限流，避免被当成免费中转站盗刷。
 
 ## 三、安装与运行
 
@@ -91,8 +128,14 @@ npm run dev
 
 | 变量名 | 必填 | 说明 |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | 否 | DeepSeek 的 API Key，留空则走本地关键词兜底 |
-| `ZHIPU_API_KEY` | 否 | 智谱 GLM 的 API Key，备选模型 |
+| `AI_PROVIDER` | 否 | 供应商，默认 `deepseek`；也可 `zhipu` / `moonshot` / `siliconflow` / `ollama` / `custom` |
+| `AI_MODEL` | 否 | 模型名，留空用该供应商默认值 |
+| `AI_BASE_URL` | 否 | 接口地址，留空用默认值；`custom` 模式必填 |
+| `DEEPSEEK_API_KEY` | 否 | DeepSeek 的 Key，留空则走本地关键词兜底 |
+| `ZHIPU_API_KEY` | 否 | 智谱 GLM 的 Key，备选模型 |
+| `MOONSHOT_API_KEY` | 否 | Kimi 的 Key，备选模型 |
+| `SILICONFLOW_API_KEY` | 否 | 硅基流动的 Key，备选模型 |
+| `AI_API_KEY` | 否 | `custom` 模式专用；本地端点（如 Ollama）可留空 |
 
 真实 Key 只存在于本地 `.env.local`，已被 `.gitignore` 排除，不会进入仓库。
 
@@ -102,13 +145,14 @@ npm run dev
 - [x] 机型库 13 台真实参数
 - [x] 需求词典 15 条（含翻译依据）
 - [x] 规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
-- [x] 主界面：条件胶囊可编辑、翻译依据可展开、超预算标注
+- [x] 主界面组件化（6 个组件 + 91 行编排层）
+- [x] **AI 接入：`/api/parse` 路由 + Prompt A + Zod 校验 + 失败重试**
+- [x] **可替换供应商：5 家预置 + 任意 OpenAI 兼容端点**
+- [x] **三层降级：内置 Key → 访客自带 Key → 本地词典兜底**
+- [ ] 界面接上 AI 结果（流式 / 思考状态 / 错误边界）
 - [ ] 机型库扩充至 40 台
-- [ ] AI 接入：大模型结构化输出约束（Zod 校验 + 失败重试）
 - [ ] Agent 工具调用循环（多轮追问 / 比价 / 详情查询）
-- [ ] 流式输出与思考状态可视化
 - [ ] RAG 混合检索（解释带参数引用）
-- [ ] 三层降级链路验证
 
 ## 六、团队信息
 
