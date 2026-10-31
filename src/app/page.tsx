@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConstraintPanel from "@/components/ConstraintPanel";
+import GuideList from "@/components/GuideList";
 import LaptopCard from "@/components/LaptopCard";
 import RelaxNotice from "@/components/RelaxNotice";
 import RequirementInput from "@/components/RequirementInput";
@@ -9,9 +10,15 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import TranslationStatus from "@/components/TranslationStatus";
 import { dictionary, type Constraints } from "@/data/dictionary";
+import { guideCatalog } from "@/data/guide-catalog";
 import { laptops } from "@/data/laptops";
 import { probeProvider, requestParse } from "@/lib/ai/api-client";
 import type { Trace, UnifiedParseResult } from "@/lib/ai/types";
+import {
+  categoryFromUsages,
+  filterByCategory,
+  guideNearBudget,
+} from "@/lib/guide";
 import { match } from "@/lib/match";
 
 const EXAMPLES = [
@@ -54,6 +61,14 @@ export default function Home() {
 
   // 条件一变就重算。match 是纯函数，AI 完全不参与这一步。
   const outcome = useMemo(() => match(constraints), [constraints]);
+
+  // 名录参考：和硬筛选完全独立，只在有预算或用途时给同价位参考
+  const guideEntries = useMemo(() => {
+    if (!submitted) return [];
+    const near = guideNearBudget(constraints.budgetMax, constraints.usages);
+    const filtered = filterByCategory(near, categoryFromUsages(constraints.usages));
+    return filtered.slice(0, 8);
+  }, [submitted, constraints.budgetMax, constraints.usages]);
 
   const runParse = useCallback(
     async (input: string) => {
@@ -170,9 +185,17 @@ export default function Home() {
           </section>
         )}
 
+        {submitted && guideEntries.length > 0 && (
+          <GuideList
+            entries={guideEntries}
+            budget={constraints.budgetMax}
+          />
+        )}
+
         <SiteFooter
           laptopCount={laptops.length}
           dictionaryCount={dictionary.length}
+          guideCount={guideCatalog.length}
         />
       </main>
     </div>
