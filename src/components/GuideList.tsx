@@ -35,6 +35,8 @@ export default function GuideList({ entries, budget }: GuideListProps) {
       <p className="mt-2 text-xs leading-5 text-slate-400">
         下面是选购指南里同价位段收录的机型。这一层只有价位段和真实优缺点，
         没有确切屏幕、重量、电池数据，所以不参与筛选，只作为参考。
+        每条都能点进去看笔吧评测原文；标了「自行查证补充」的是指南里没有、
+        由我们自己查到的机型。
       </p>
 
       <ul className="mt-4 space-y-3">
@@ -83,6 +85,24 @@ export default function GuideList({ entries, budget }: GuideListProps) {
                 {n}
               </p>
             ))}
+
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+              {entry.reviewUrl ? (
+                <a
+                  href={entry.reviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-800"
+                >
+                  看笔吧评测原文
+                </a>
+              ) : null}
+              {entry.source === "user" ? (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
+                  自行查证补充
+                </span>
+              ) : null}
+            </div>
           </li>
         ))}
       </ul>

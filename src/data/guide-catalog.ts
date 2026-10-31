@@ -8,7 +8,11 @@
  * 【为什么不合成一张表】名录里大部分机器没有确切屏幕、重量、电池数据。
  *   硬塞进参数库就得编造数字。宁可少一层数据，也不给用户看假数字。
  *
- * 本文件由脚本从原文生成，请勿手工修改。
+ * 本文件由脚本从原文生成；`reviewUrl` 和 `source` 是后来补的两个字段：
+ *   reviewUrl  笔吧评测室公众号里这台机器的评测文章（77 台有）
+ *   source     "user" 表示指南原文没有、由我们自己查证补充的机型（4 台），界面单独标注
+ *
+ * 所以现在有两种条目：来自指南的，和我们自己补的。做数据清洗时别把后者删掉。
  */
 
 export type GuideCategory = "gaming" | "allround" | "ultrabook";
@@ -49,6 +53,10 @@ export interface GuideEntry {
   notes: string[];
   /** 原文里零散提到的参数（电池/重量/容量等），仅用于展示，不参与筛选 */
   params: string[];
+  /** 笔吧评测室的原文链接（公众号文章）。有了它，每条推荐都能追溯出处 */
+  reviewUrl?: string;
+  /** 数据来源：缺省表示来自笔吧指南；"user" 表示指南里没有、由用户自行查证补充 */
+  source?: "user";
 }
 
 export const guideCatalog: GuideEntry[] = [
@@ -65,6 +73,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["性能释放低，接口种类少"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695941&idx=1&sn=58d96c45ea8e4c866efdea774453b73a&scene=21#wechat_redirect",
   },
   {
     id: "g002",
@@ -79,6 +88,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口较少，a口速率较低，存储为512g，较小"],
     notes: [],
     params: ["75wh", "512g"],
+    source: "user",
   },
   {
     id: "g003",
@@ -93,6 +103,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["噪音较高，插槽内存影响核显性能"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654664745&idx=1&sn=2df93abb4dec9c51f993434dfe0a8912&chksm=8c95cd42bbe244548b8b409afcb20c3cb41948797a6fd63fad8d7baac66ca891e846d036e669&scene=21#wechat_redirect",
   },
   {
     id: "g004",
@@ -107,6 +118,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["采用QLC硬盘，触控板手感差，键盘背光不均匀"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693787&idx=1&sn=d69dd4f05c7e82a9f497eb9d32faa6a6&scene=21#wechat_redirect",
   },
   {
     id: "g005",
@@ -121,6 +133,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: [],
     notes: ["和无界14表现差不多，但是升级点比较亮眼，电池由60wh升级为72wh，扬声器由双扬升级为四扬，国补价格也有一定幅度的上涨来到了5199元", "Maxcarbon则是碳纤维超轻版，官方标称重量仅946g，定位超清本"],
     params: ["60wh", "72wh", "946g"],
+    source: "user",
   },
   {
     id: "g006",
@@ -135,6 +148,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["性能释放保守，仅32w，内存仅16g"],
     notes: [],
     params: ["70wh", "1.1kg", "16g", "32w"],
+    source: "user",
   },
   {
     id: "g007",
@@ -149,6 +163,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘手感一般，接口数量少"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654698323&idx=1&sn=3be4d5d8033e359e4b89393a1b97da8d&scene=21#wechat_redirect",
   },
   {
     id: "g008",
@@ -163,6 +178,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["同价位最少接口，最小存储"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691448&idx=1&sn=1c64234bc08d669dc9152650460aa6d7&scene=21#wechat_redirect",
   },
   {
     id: "g009",
@@ -177,6 +193,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["性能释放差，接口种类少"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697567&idx=1&sn=0373106243dd191d25913b2e81490736&scene=21#wechat_redirect",
   },
   {
     id: "g010",
@@ -191,6 +208,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["标配24g板载内存不可升级，512g硬盘偏小，整机性能释放40w偏保守"],
     notes: [],
     params: ["60wh", "24g", "512g"],
+    source: "user",
   },
   {
     id: "g011",
@@ -205,6 +223,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["杂牌内存硬盘，低端老独显，愿者上钩"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697675&idx=1&sn=7ff6cc02655b122012072fb8fd7268b4&scene=21#wechat_redirect",
   },
   {
     id: "g012",
@@ -219,6 +238,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["纯Type-C接口，QLC硬盘容量小"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694789&idx=1&sn=f3af64f51681d4562ea3f0582e2257da&scene=21#wechat_redirect",
   },
   {
     id: "g013",
@@ -233,6 +253,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["WCL里相对较贵，固态硬盘性能一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697885&idx=1&sn=52d2f55d28e5de6985e58b38705ccd3d&scene=21#wechat_redirect",
   },
   {
     id: "g014",
@@ -247,6 +268,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["电池小，性能保守，机身偏厚重"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654684383&idx=1&sn=872be5c00989c192f58195aefb36f1ad&scene=21#wechat_redirect",
   },
   {
     id: "g015",
@@ -261,6 +283,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["续航一般，硬盘升级仅支持2242，键盘键程较短"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697072&idx=1&sn=b767064a166c90da2a7d891b38371988&scene=21#wechat_redirect",
   },
   {
     id: "g016",
@@ -275,6 +298,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["网卡性能一般，双2242硬盘位"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695215&idx=1&sn=1477c1abc337551d2f38cdae412dc272&scene=21#wechat_redirect",
   },
   {
     id: "g017",
@@ -289,6 +313,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["同类产品中机身较厚重，满载噪音较大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654679759&idx=1&sn=fd71769178ccb2a6b02c25a450dd4c51&scene=21#wechat_redirect",
   },
   {
     id: "g018",
@@ -303,6 +328,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕未校色，硬盘性能一般，触控板手感一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654681888&idx=1&sn=c48f8c88a2af1f3f14af207c7581810b&scene=21#wechat_redirect",
   },
   {
     id: "g019",
@@ -317,6 +343,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光比较明显，接口数量较少"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695287&idx=1&sn=656f97f1446e55d814939623d3334912&scene=21#wechat_redirect",
   },
   {
     id: "g020",
@@ -331,6 +358,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["图形性能较差，高负载时风扇声较大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696161&idx=1&sn=d354e006249f07bcee016c9946439014&scene=21#wechat_redirect",
   },
   {
     id: "g021",
@@ -345,6 +373,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["噪音较高，键盘、触控板体验一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654690437&idx=1&sn=ba26d304c996342003c8eaaab263c340&scene=21#wechat_redirect",
   },
   {
     id: "g022",
@@ -359,6 +388,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口较少，高负载风扇声偏尖锐"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695140&idx=1&sn=e43ccf85cea2a8d780095b013647c565&scene=21#wechat_redirect",
   },
   {
     id: "g023",
@@ -373,6 +403,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光明显，没有雷电接口"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654678479&idx=1&sn=3ba8391f24e554c508dfe52fa09cc4b5&scene=21#wechat_redirect",
   },
   {
     id: "g024",
@@ -387,6 +418,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["散热很一般，周边配置也很一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697171&idx=1&sn=140912c6aae9db057bc3a6ca1e54d8c5&scene=21#wechat_redirect",
   },
   {
     id: "g025",
@@ -401,6 +433,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["高负载下风扇噪音较大，满载掉电"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694488&idx=1&sn=370ec39cfa81cbd7e7812a57457ceae5&scene=21#wechat_redirect",
   },
   {
     id: "g026",
@@ -415,6 +448,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["处理器比较老，机身略重"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654690683&idx=1&sn=a83ac5b15a5252a3c201696cd1f4944e&scene=21#wechat_redirect",
   },
   {
     id: "g027",
@@ -429,6 +463,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身偏重，没数字小键盘"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695497&idx=1&sn=edb14a0e4a05477e74daa08578efd0ab&scene=21#wechat_redirect",
   },
   {
     id: "g028",
@@ -443,6 +478,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["散热一般，机身偏厚，屏幕响应较慢"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692812&idx=1&sn=e5654d623edf61df416f6d5d87e03d4d&scene=21#wechat_redirect",
   },
   {
     id: "g029",
@@ -457,6 +493,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["存储升级昂贵，接口少，屏幕无高刷"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691809&idx=1&sn=71171bcba42071a10f8114b24c15647e&scene=21#wechat_redirect",
   },
   {
     id: "g030",
@@ -471,6 +508,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕不平整，键盘背光亮度不均匀"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692960&idx=1&sn=bf9ad5596031ee39b86a9120f53dd002&scene=21#wechat_redirect",
   },
   {
     id: "g031",
@@ -485,6 +523,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["鸿蒙系统兼容性有待完善，接口数量少"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696780&idx=1&sn=807adaab1b5db375b920c14f3ab74608&scene=21#wechat_redirect",
   },
   {
     id: "g032",
@@ -499,6 +538,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口数量较少，内存品牌知名度小"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694267&idx=1&sn=39dc46d429faa3867bfa29aee8b7dee9&scene=21#wechat_redirect",
   },
   {
     id: "g033",
@@ -513,6 +553,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["噪音较高，满载键盘高温面积大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696131&idx=1&sn=edfb46c015e88276db2767437d4a7c21&scene=21#wechat_redirect",
   },
   {
     id: "g034",
@@ -527,6 +568,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘高温区较大，适配器厚重，就是个换皮版R7000P"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682177&idx=1&sn=da95102d2e9442587818ca73f61fb8db&scene=21#wechat_redirect",
   },
   {
     id: "g035",
@@ -541,6 +583,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身较厚，屏幕下边框较宽"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696820&idx=1&sn=bdfd7b0c952670f2020b2070a46165a6&scene=21#wechat_redirect",
   },
   {
     id: "g036",
@@ -555,6 +598,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["QLC硬盘，键盘较热，接口速率偏低"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693718&idx=1&sn=631d5cdbfb01b001042ebff4f8a06ac8&scene=21#wechat_redirect",
   },
   {
     id: "g037",
@@ -569,6 +613,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，且背光效果一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654680469&idx=1&sn=492469e65fade70d7bdb5b4e14420c6c&scene=21#wechat_redirect",
   },
   {
     id: "g038",
@@ -583,6 +628,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，且背光效果一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682304&idx=1&sn=b60bfe2911feb7af247dfda89d150af7&scene=21#wechat_redirect",
   },
   {
     id: "g039",
@@ -597,6 +643,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，塑料感较强"],
     notes: [],
     params: ["300Hz"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682999&idx=1&sn=a1aef8f5729497f8eec9f9953a554e99&scene=21#wechat_redirect",
   },
   {
     id: "g040",
@@ -611,6 +658,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，转轴处质感一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691888&idx=1&sn=13d74379fa4938cccb6aed8a06a60e03&scene=21#wechat_redirect",
   },
   {
     id: "g041",
@@ -625,6 +673,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["处理器比较老，采用QLC硬盘"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694204&idx=1&sn=787de819da0623f2aae5bc9ecfcf1da4&scene=21#wechat_redirect",
   },
   {
     id: "g042",
@@ -639,6 +688,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["QLC硬盘，键盘温度高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654681960&idx=1&sn=b58b2f91449bb2aef0eac05402d7a125&scene=21#wechat_redirect",
   },
   {
     id: "g043",
@@ -653,6 +703,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["512GB QLC硬盘，满载会从电池取电"],
     notes: [],
     params: ["512GB"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695091&idx=1&sn=89302bc907348fbec032409d01e65b96&scene=21#wechat_redirect",
   },
   {
     id: "g044",
@@ -667,6 +718,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["核显本中较重，极客模式下噪音较大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691557&idx=1&sn=232d0a7a65fbbdcf17599819461b85e7&scene=21#wechat_redirect",
   },
   {
     id: "g045",
@@ -681,6 +733,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光比较明显，满载时有掉电情况"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691854&idx=1&sn=075ac1dcefad0ebef5628de0d0272541&scene=21#wechat_redirect",
   },
   {
     id: "g046",
@@ -695,6 +748,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["同类产品中机身较厚，电源适配器较重"],
     notes: [],
     params: ["14寸"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654690266&idx=1&sn=040bcc398fa1f0cea15f2df73df56873&scene=21#wechat_redirect",
   },
   {
     id: "g047",
@@ -709,6 +763,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["高负载下C面整体较热，便携性一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654681801&idx=1&sn=b51030f887365b298946f3be668cdc3d&scene=21#wechat_redirect",
   },
   {
     id: "g048",
@@ -723,6 +778,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口很少，充电时间较长"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691903&idx=1&sn=3843645af18089d0191fda6b6a56aa54&scene=21#wechat_redirect",
   },
   {
     id: "g049",
@@ -737,6 +793,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["AC面质感一般，且不耐脏，屏幕有油腻感"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696682&idx=1&sn=07924775ebf62af930e78077adf08c2b&scene=21#wechat_redirect",
   },
   {
     id: "g050",
@@ -751,6 +808,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光比较明显，高负载时噪音偏高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691770&idx=1&sn=5d5f8623200bca2d5e17e284fd79fdab&scene=21#wechat_redirect",
   },
   {
     id: "g051",
@@ -765,6 +823,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光，高负载时键盘温度较高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693651&idx=1&sn=a60438b78cae3eed35ca416027b9184b&scene=21#wechat_redirect",
   },
   {
     id: "g052",
@@ -779,6 +838,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身厚重，噪音较大，价格很贵"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696934&idx=1&sn=c790f1cc13a411c2ea36852b63a4c127&scene=21#wechat_redirect",
   },
   {
     id: "g053",
@@ -793,6 +853,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["QLC硬盘，电池较小，OLED屏分辨率不够高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692517&idx=1&sn=1163d9e81c637d841b5a753c47e67b2c&scene=21#wechat_redirect",
   },
   {
     id: "g054",
@@ -807,6 +868,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["RGB背光不均匀，机身偏重，键盘温度较高"],
     notes: [],
     params: ["300Hz"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654680565&idx=1&sn=d257e9f4a3df84fe8c2a626adaf3f121&scene=21#wechat_redirect",
   },
   {
     id: "g055",
@@ -821,6 +883,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，接口速率偏小"],
     notes: [],
     params: ["1.56kg"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654695618&idx=1&sn=00c1fcf5e0be987c41d104954cce292b&scene=21#wechat_redirect",
   },
   {
     id: "g056",
@@ -835,6 +898,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["键盘温度较高，单条32GB内存升级成本高"],
     notes: [],
     params: ["300Hz"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654684034&idx=1&sn=38c5909efa46640c57cbdbaa9a89c00b&scene=21#wechat_redirect",
   },
   {
     id: "g057",
@@ -849,6 +913,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["高负载下，键盘高温区面积较大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694711&idx=1&sn=34d8415dd06386fe2ce8572b9ee03d4b&scene=21#wechat_redirect",
   },
   {
     id: "g058",
@@ -863,6 +928,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口种类单一，屏幕反光明显，QLC硬盘"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696653&idx=1&sn=0bccd7f7ad296ba4b71e7a57b0a7c245&scene=21#wechat_redirect",
   },
   {
     id: "g059",
@@ -877,6 +943,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光明显，兼容性一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692923&idx=1&sn=ef40b6d5258932d3491c20a2bfbc1a6c&scene=21#wechat_redirect",
   },
   {
     id: "g060",
@@ -891,6 +958,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["缺少金属质感，噪音较高、键盘较热"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691376&idx=1&sn=1e9a9b841a7c2c3218e5eef5c4911457&scene=21#wechat_redirect",
   },
   {
     id: "g061",
@@ -905,6 +973,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["价格很贵，接口少，屏幕有网格"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654678555&idx=1&sn=66f733f6f4fa4fbbaceadb8a443c247e&scene=21#wechat_redirect",
   },
   {
     id: "g062",
@@ -919,6 +988,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["背光键盘亮度低，性能控制软件难用"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693121&idx=1&sn=e56385f9b4ffd3dd52ced2701e517955&scene=21#wechat_redirect",
   },
   {
     id: "g063",
@@ -933,6 +1003,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["满载风扇噪音较大，小键盘布局不合理"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682209&idx=1&sn=977bbee973eea4e31cff04ded1cf9dd3&scene=21#wechat_redirect",
   },
   {
     id: "g064",
@@ -947,6 +1018,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["散热压力较大，刘海屏影响观感"],
     notes: [],
     params: ["14英寸"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654687904&idx=1&sn=523e974b97fa0f36dfbc0bac524d8d9f&scene=21#wechat_redirect",
   },
   {
     id: "g065",
@@ -961,6 +1033,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身厚重，塑料外壳，性能模式切换要进BIOS"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654697920&idx=1&sn=7895fbfcd3632fdad6144a860730673c&scene=21#wechat_redirect",
   },
   {
     id: "g066",
@@ -975,6 +1048,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["QLC硬盘，满载时键盘温度较高、噪音较大"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692754&idx=1&sn=35321f3ec50d8aed02e3a48909f0616b&scene=21#wechat_redirect",
   },
   {
     id: "g067",
@@ -989,6 +1063,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身尾部较厚，屏幕反光比较明显"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696451&idx=1&sn=5acb9f3ac5d2372f49c152055e09fb33&scene=21#wechat_redirect",
   },
   {
     id: "g068",
@@ -1003,6 +1078,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["噪音大、机身、电源适配器过重"],
     notes: [],
     params: ["16英寸"],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692837&idx=1&sn=6dcbb65b19fab563dcb0842899146d09&scene=21#wechat_redirect",
   },
   {
     id: "g069",
@@ -1017,6 +1093,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身厚重，不耐脏，风扇调度策略需优化"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693427&idx=1&sn=45fee07205ef6385cae173c789235b1b&scene=21#wechat_redirect",
   },
   {
     id: "g070",
@@ -1031,6 +1108,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["屏幕反光明显，单雷电4接口"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693753&idx=1&sn=cd82c9d98cc6ac80daf830c895194e4c&scene=21#wechat_redirect",
   },
   {
     id: "g071",
@@ -1045,6 +1123,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["旗舰级噪音，机身较重，MiniLED屏色准一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654679678&idx=1&sn=33121e398d664b623fc4d9879b8e78db&scene=21#wechat_redirect",
   },
   {
     id: "g072",
@@ -1059,6 +1138,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身厚重，MiniLED屏色准一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654681273&idx=1&sn=cbefa291be2a68cb9160b3f0e9d0c2d6&scene=21#wechat_redirect",
   },
   {
     id: "g073",
@@ -1073,6 +1153,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["机身厚重，接口位置使用不便"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682577&idx=1&sn=a97488e88eaf60358d12aaf61a148922&scene=21#wechat_redirect",
   },
   {
     id: "g074",
@@ -1087,6 +1168,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["腕托有热感，机身、适配器厚重"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694817&idx=1&sn=5cbb219366fe5881f2cb240d78ea9fae&scene=21#wechat_redirect",
   },
   {
     id: "g075",
@@ -1101,6 +1183,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["没有USB 4接口，键盘温度较高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654682776&idx=1&sn=79dea132c599ad1639b9aefa761be3f3&scene=21#wechat_redirect",
   },
   {
     id: "g076",
@@ -1115,6 +1198,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["风扇敏感，噪音较大，刘海屏影响观感"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654696622&idx=1&sn=a7fe648a148b4554d5b0232206a96d85&scene=21#wechat_redirect",
   },
   {
     id: "g077",
@@ -1129,6 +1213,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["接口较少，手写笔需要单独收纳"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654691347&idx=1&sn=35c469ec2e2612d775bcbec3025fae92&scene=21#wechat_redirect",
   },
   {
     id: "g078",
@@ -1143,6 +1228,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["价格昂贵，机身较重"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654694472&idx=1&sn=48a2ea03c9df6da2589949a9e20c0509&scene=21#wechat_redirect",
   },
   {
     id: "g079",
@@ -1157,6 +1243,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["满载噪音较高，内部扩展性较差"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654692064&idx=1&sn=6375c3a1347aa1516f9d7d9864119ad4&scene=21#wechat_redirect",
   },
   {
     id: "g080",
@@ -1171,6 +1258,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["A口较少，硬盘速度一般"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654693283&idx=1&sn=d1e05323228e274002dc1f7e69b4fa27&scene=21#wechat_redirect",
   },
   {
     id: "g081",
@@ -1185,6 +1273,7 @@ export const guideCatalog: GuideEntry[] = [
     cons: ["USB-A口数量较少，高负载下键盘温度较高"],
     notes: [],
     params: [],
+    reviewUrl: "https://mp.weixin.qq.com/s?__biz=MzIxMTAyNjk0OA==&mid=2654686388&idx=1&sn=9b7c20a2506902ce4c5711230865a586&scene=21#wechat_redirect",
   },
 ];
 
