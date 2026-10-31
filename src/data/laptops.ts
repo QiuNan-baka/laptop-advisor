@@ -11,6 +11,7 @@
  */
 
 import { catalogSpecs } from "./catalog-specs";
+import type { GuideCategory } from "./guide-catalog";
 
 /** 用途标签：用来把"模糊需求"落到"可筛选的场景" */
 export type UsageTag =
@@ -25,6 +26,8 @@ export interface Laptop {
   id: string;
   brand: string;
   model: string;
+  /** 定位分类（游戏本/全能本/轻薄本），来自选购指南原文定义 */
+  category?: GuideCategory;
   /** 参考价（原价，元） */
   price: number;
   /** 国补价（元），没有国补则省略 */

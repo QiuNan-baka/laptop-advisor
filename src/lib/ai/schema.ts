@@ -71,6 +71,14 @@ export const ConstraintsSchema = z.object({
   ramMin: num("ramMin"),
   storageMin: num("storageMin"),
   batteryMin: num("batteryMin"),
+  preferEfficient: z
+    .boolean()
+    .nullish()
+    .transform((v) => (v === null ? undefined : v)),
+  preferStrongIGpu: z
+    .boolean()
+    .nullish()
+    .transform((v) => (v === null ? undefined : v)),
   requireDiscreteGpu: z
     .boolean()
     .nullish()

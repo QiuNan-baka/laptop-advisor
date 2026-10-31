@@ -30,6 +30,10 @@ export interface Constraints {
   batteryMin?: number;
   /** 是否需要独显 */
   requireDiscreteGpu?: boolean;
+  /** 优先高能效芯片（「续航久」的正确映射，不是大电池） */
+  preferEfficient?: boolean;
+  /** 优先强核显（「轻度玩 3A」的正确映射，不强求独显） */
+  preferStrongIGpu?: boolean;
   /** 命中的用途标签 */
   usages?: UsageTag[];
 }
@@ -47,6 +51,8 @@ export const CONSTRAINT_LABELS: Record<keyof Constraints, string> = {
   storageMin: "硬盘至少",
   batteryMin: "电池至少",
   requireDiscreteGpu: "需要独显",
+  preferEfficient: "优先高能效芯片",
+  preferStrongIGpu: "优先强核显",
   usages: "适用场景",
 };
 
@@ -100,6 +106,14 @@ export const dictionary: DictionaryEntry[] = [
     patch: { weightMax: 1.5 },
   },
   {
+    id: "light-gaming",
+    keywords: ["轻度游戏", "轻度玩", "偶尔玩", "随便玩", "轻度3a", "轻游戏", "轻度玩游戏", "轻量游戏", "玩点游戏"],
+    label: "轻度游戏",
+    explain:
+      "「轻度玩 3A」不需要独显。核显轻薄本里，只有 Intel Core Ultra X7-358H / X9-388H 的 Arc 强核显带得动 3A，其余核显（Apple M / 骁龙 X / 普通 Ultra）玩不动。所以我优先推荐这两款芯片的机型，而不是盲目上又重又贵的独显游戏本。",
+    patch: { usages: ["gaming"], preferStrongIGpu: true },
+  },
+  {
     id: "gaming",
     keywords: ["打游戏", "游戏", "玩3A", "吃鸡", "原神", "电竞"],
     label: "打游戏",
@@ -131,8 +145,9 @@ export const dictionary: DictionaryEntry[] = [
     id: "battery",
     keywords: ["续航", "一天不用充电", "电池耐用", "上课一天"],
     label: "续航好",
-    explain: "续航没法只看电池容量，但容量是硬底线。我按电池 ≥ 70Wh 来筛，实际续航还要看 CPU 功耗。",
-    patch: { batteryMin: 70 },
+    explain:
+      "「一天不用充电」看的不是电池多大，而是芯片的能效比。一台 99Wh 电池的 HX 游戏本反而不如一台 52Wh 的 Apple M4 轻薄本耐造。所以我优先推荐高能效芯片（Apple M / 骁龙 X / Core Ultra / Ryzen AI）的机型，而不是盲目追大电池。",
+    patch: { preferEfficient: true },
   },
   {
     id: "office",

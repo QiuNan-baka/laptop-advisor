@@ -30,7 +30,7 @@ import {
   guideCatalog,
 } from "@/data/guide-catalog";
 import { satisfies } from "@/lib/match";
-import { formatCpu } from "@/lib/cpu";
+import { formatCpu, efficiencyTier, hasStrongIGpu } from "@/lib/cpu";
 import { formatHitsForModel, searchKnowledge, toCitations, type Citation } from "./rag";
 
 // ---------- 工具执行结果 ----------
@@ -64,6 +64,8 @@ const FilterArgs = z.object({
   ramMin: num("ramMin"),
   storageMin: num("storageMin"),
   batteryMin: num("batteryMin"),
+  preferEfficient: z.boolean().optional(),
+  preferStrongIGpu: z.boolean().optional(),
   requireDiscreteGpu: z.boolean().optional(),
   usages: z.array(UsageEnum).optional(),
 });
@@ -104,7 +106,9 @@ export const TOOLS = [
           ramMin: { type: "number", description: "内存下限（GB）" },
           storageMin: { type: "number", description: "硬盘下限（GB）" },
           batteryMin: { type: "number", description: "电池容量下限（Wh）" },
-          requireDiscreteGpu: { type: "boolean", description: "是否需要独显（剪辑/建模/3A 游戏才需要）" },
+          preferEfficient: { type: "boolean", description: "是否优先高能效芯片（用户说「续航久/一天不用充电」时用 true，不要用 batteryMin）" },
+          preferStrongIGpu: { type: "boolean", description: "是否优先强核显（用户说「轻度玩3A/偶尔玩游戏」时用 true，不强求独显；核显里只有 X7-358H/X9-388H 能带得动）" },
+          requireDiscreteGpu: { type: "boolean", description: "是否需要独显（剪辑/建模/重度 3A 游戏才需要）" },
           usages: {
             type: "array",
             items: { type: "string", enum: ["office", "coding", "gaming", "design", "study", "video"] },
@@ -181,6 +185,7 @@ export const TOOLS = [
           ramMin: { type: "number" },
           storageMin: { type: "number" },
           batteryMin: { type: "number" },
+          preferEfficient: { type: "boolean" },
           requireDiscreteGpu: { type: "boolean" },
           usages: {
             type: "array",
@@ -335,8 +340,22 @@ function runFilter(args: unknown): ToolResult {
     };
   }
 
-  // 按价格升序，便于模型给出「预算内最划算的」
-  const sorted = [...hits].sort((a, b) => a.price - b.price).slice(0, 6);
+  // 高能效软偏好优先（能效档位高的排前面），再按强核显软偏好，最后按价格升序
+  const sorted = [...hits]
+    .sort((a, b) => {
+      if (c.preferEfficient) {
+        const ta = efficiencyTier(a.cpu.name);
+        const tb = efficiencyTier(b.cpu.name);
+        if (ta !== tb) return tb - ta;
+      }
+      if (c.preferStrongIGpu) {
+        const ia = hasStrongIGpu(a.cpu.name) ? 1 : 0;
+        const ib = hasStrongIGpu(b.cpu.name) ? 1 : 0;
+        if (ia !== ib) return ib - ia;
+      }
+      return a.price - b.price;
+    })
+    .slice(0, 6);
   return {
     content:
       `共筛出 ${hits.length} 台，按价格升序（最多列 6 台）：\n\n` +
@@ -472,6 +491,8 @@ const RELAX_ORDER: (keyof Constraints)[] = [
   "screenSizeMin",
   "ppiMin",
   "weightMax",
+  "preferEfficient",
+  "preferStrongIGpu",
   "requireDiscreteGpu",
   "usages",
   "budgetMax",

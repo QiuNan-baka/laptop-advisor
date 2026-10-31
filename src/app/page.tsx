@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AgentChat from "@/components/AgentChat";
 import ConstraintPanel from "@/components/ConstraintPanel";
 import GuideList from "@/components/GuideList";
-import LaptopCard from "@/components/LaptopCard";
+import ResultByCategory from "@/components/ResultByCategory";
 import RelaxNotice from "@/components/RelaxNotice";
 import RequirementInput from "@/components/RequirementInput";
 import SiteFooter from "@/components/SiteFooter";
@@ -215,11 +215,9 @@ export default function Home() {
                 ? `匹配到 ${outcome.results.length} 台`
                 : `预算内 0 台 · 以下是超预算、但其他条件都满足的 ${outcome.overBudget.length} 台`}
             </h2>
-            <div className="space-y-3">
-              {[...outcome.overBudget, ...outcome.results].map((item) => (
-                <LaptopCard key={item.laptop.id} result={item} />
-              ))}
-            </div>
+            <ResultByCategory
+              items={[...outcome.overBudget, ...outcome.results]}
+            />
           </section>
         )}
 

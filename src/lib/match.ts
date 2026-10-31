@@ -11,7 +11,7 @@
  */
 
 import { laptops, type Laptop } from "@/data/laptops";
-import { formatCpu } from "@/lib/cpu";
+import { formatCpu, efficiencyTier, hasStrongIGpu, isEfficientCpu } from "@/lib/cpu";
 import {
   CONSTRAINT_LABELS,
   CONSTRAINT_UNITS,
@@ -79,6 +79,10 @@ export function parseRequirement(text: string): ParseResult {
     // 预算类词典只在用户没说具体数字时才生效
     if (entry.id === "cheap" && constraints.budgetMax !== undefined) continue;
     if (entry.id === "big-storage" && constraints.storageMin !== undefined) continue;
+    // 互斥：已经命中「轻度游戏」就不再叠加「重度游戏」的独显硬约束。
+    // 否则「轻度玩3a」会同时命中两条（含"轻度玩"+含"玩3A"），
+    // 既加 preferStrongIGpu 又加 requireDiscreteGpu:true，自相矛盾。
+    if (entry.id === "gaming" && constraints.preferStrongIGpu === true) continue;
 
     for (const [key, value] of Object.entries(entry.patch)) {
       const k = key as keyof Constraints;
@@ -108,7 +112,58 @@ export function parseRequirement(text: string): ParseResult {
     });
   }
 
-  return { constraints, traces };
+  // 3. 冲突调和（见 reconcileConstraints）
+  const rec = reconcileConstraints(constraints);
+  if (rec.note) traces.push(rec.note);
+
+  return { constraints: rec.constraints, traces };
+}
+
+/**
+ * 冲突调和：某些诉求组合在物理上互相矛盾，直接硬筛会导致结果极少甚至为空。
+ * 规则 1：轻度游戏（preferStrongIGpu）+ 重度独显（requireDiscreteGpu）互斥 → 去独显。
+ * 规则 2：「重度游戏」（requireDiscreteGpu，独显游戏本）+「轻」（weightMax < 2kg）冲突，
+ *   独显游戏本受散热模组与独显重量限制，整机基本都在 1.6~2kg，几乎不存在 1.5kg 以下的，
+ *   所以把重量上限放宽到 2kg，而不是筛出一两台甚至零台。
+ */
+export function reconcileConstraints(constraints: Constraints): {
+  constraints: Constraints;
+  note?: { label: string; explain: string; keys: (keyof Constraints)[] };
+} {
+  const rec: Constraints = { ...constraints };
+  let note:
+    | { label: string; explain: string; keys: (keyof Constraints)[] }
+    | undefined;
+
+  // 规则 1：轻度游戏与重度独显互斥。
+  // 「轻度玩 3A」不强求独显——核显里 X7-358H/X9-388H 能带得动。
+  // 若同时给了 preferStrongIGpu 和 requireDiscreteGpu，去掉独显硬约束。
+  if (rec.preferStrongIGpu === true && rec.requireDiscreteGpu === true) {
+    delete rec.requireDiscreteGpu;
+    note = {
+      label: "轻度游戏不强求独显",
+      explain:
+        "你说的是「轻度玩游戏」，核显轻薄本里的 X7-358H / X9-388H 已经能带得动 3A，不需要再上又重又贵的独显游戏本。所以我没按「需要独显」来筛。",
+      keys: ["preferStrongIGpu", "requireDiscreteGpu"],
+    };
+  }
+
+  // 规则 2：游戏本 + 轻薄冲突（详见函数注释）。
+  // 注意：只有「重度游戏」（requireDiscreteGpu，即独显游戏本）才与「轻」冲突——
+  // 独显游戏本受散热模组与独显重量限制，整机基本 1.6~2kg。
+  // 轻度游戏走核显（X7-358H/X9-388H），核显轻薄本 1.5kg 以下大把，不冲突、不放宽。
+  const wantsGaming = rec.requireDiscreteGpu === true;
+  if (wantsGaming && rec.weightMax !== undefined && rec.weightMax < 2) {
+    const oldWeight = rec.weightMax;
+    rec.weightMax = 2;
+    note = {
+      label: "游戏本与轻薄冲突",
+      explain: `你要「打游戏」又要「轻」，但独显游戏本受散热和独显重量限制，整机基本都在 1.6~2kg，几乎没有 ${oldWeight}kg 以下的。所以我把重量上限从 ${oldWeight}kg 放宽到 2kg，这样能筛出轻薄游戏本。`,
+      keys: ["weightMax", "requireDiscreteGpu"],
+    };
+  }
+
+  return note ? { constraints: rec, note } : { constraints: rec };
 }
 
 /** 单个机型是否满足约束 */
@@ -124,6 +179,8 @@ export function satisfies(l: Laptop, c: Constraints): boolean {
   if (c.storageMin !== undefined && (l.storage === undefined || l.storage < c.storageMin)) return false;
   if (c.batteryMin !== undefined && (l.battery === undefined || l.battery < c.batteryMin)) return false;
   if (c.requireDiscreteGpu && !/RTX|GTX|Radeon RX/.test(l.gpu)) return false;
+  // 注意：preferEfficient / preferStrongIGpu 都是「软偏好」而非硬过滤——它们不在这里做硬性排除，
+  // 只在 countHits 加权和 rank 排序里把高能效芯片 / 强核显的机型往前排。
   return true;
 }
 
@@ -139,6 +196,8 @@ function countHits(l: Laptop, c: Constraints): number {
   if (c.storageMin !== undefined) n++;
   if (c.batteryMin !== undefined) n++;
   if (c.requireDiscreteGpu) n++;
+  if (c.preferEfficient && isEfficientCpu(l.cpu.name)) n++;
+  if (c.preferStrongIGpu && hasStrongIGpu(l.cpu.name)) n++;
   if (c.usages?.length && c.usages.some((u) => l.tags.includes(u))) n++;
   return n;
 }
@@ -166,7 +225,21 @@ function rank(list: Laptop[], c: Constraints): MatchResult[] {
       score: countHits(l, c),
       reason: buildReason(l, c),
     }))
-    .sort((a, b) => b.score - a.score || a.laptop.price - b.laptop.price);
+    .sort((a, b) => {
+      // 高能效软偏好：能效档位高的排前面（tier 2 > tier 1 > 0），同档再按得分 + 价格
+      if (c.preferEfficient) {
+        const ta = efficiencyTier(a.laptop.cpu.name);
+        const tb = efficiencyTier(b.laptop.cpu.name);
+        if (ta !== tb) return tb - ta;
+      }
+      // 强核显软偏好：轻度玩 3A 时，Arc 强核显（X7-358H/X9-388H）排前面
+      if (c.preferStrongIGpu) {
+        const ia = hasStrongIGpu(a.laptop.cpu.name) ? 1 : 0;
+        const ib = hasStrongIGpu(b.laptop.cpu.name) ? 1 : 0;
+        if (ia !== ib) return ib - ia;
+      }
+      return b.score - a.score || a.laptop.price - b.laptop.price;
+    });
 }
 
 /**

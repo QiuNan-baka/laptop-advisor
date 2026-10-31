@@ -9,7 +9,7 @@
  * 上层只会看到 { ok, source, ... }，不需要知道是谁翻译的。
  */
 
-import { parseRequirement } from "@/lib/match";
+import { parseRequirement, reconcileConstraints } from "@/lib/match";
 import type { Constraints } from "@/data/dictionary";
 import { callProvider, AiCallError } from "./client";
 import { resolveProvider } from "./provider";
@@ -100,11 +100,16 @@ export async function parseWithFallback(
       );
     }
 
+    // 冲突调和：AI 输出的约束同样可能"既要游戏本又要轻"，做与词典一致的放宽
+    const rec = reconcileConstraints(ai.constraints);
+    const aiTraces = normalizeTraces(ai.traces);
+    if (rec.note) aiTraces.push(rec.note);
+
     return {
       ok: true,
       source,
-      constraints: ai.constraints,
-      traces: normalizeTraces(ai.traces),
+      constraints: rec.constraints,
+      traces: aiTraces,
       confidence: ai.confidence,
       questions: ai.questions,
       model: provider.model,
