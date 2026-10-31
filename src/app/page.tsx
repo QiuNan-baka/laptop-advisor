@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AgentChat from "@/components/AgentChat";
 import ConstraintPanel from "@/components/ConstraintPanel";
 import GuideList from "@/components/GuideList";
 import LaptopCard from "@/components/LaptopCard";
@@ -69,6 +70,37 @@ export default function Home() {
     const filtered = filterByCategory(near, categoryFromUsages(constraints.usages));
     return filtered.slice(0, 8);
   }, [submitted, constraints.budgetMax, constraints.usages]);
+
+  /**
+   * 把当前约束翻译成一段人话，作为 Agent 的起点上下文。
+   *
+   * 【为什么要传这个】
+   * 用户在页面里已经筛选过一轮了，接着问「这几台差在哪」时，
+   * 如果 Agent 不知道他已经有 4 台候选，就得从头再筛一遍 —— 白烧 token 还慢。
+   * 先把已确定的约束喂给它，它就能直接进入"对比/答疑"，而不是重新理解需求。
+   */
+  const seedContext = useMemo(() => {
+    if (!submitted) return undefined;
+    const parts: string[] = [];
+    if (constraints.budgetMax) parts.push(`预算上限 ${constraints.budgetMax} 元`);
+    if (constraints.weightMax) parts.push(`重量不超过 ${constraints.weightMax}kg`);
+    if (constraints.screenSizeMin) parts.push(`屏幕至少 ${constraints.screenSizeMin} 英寸`);
+    if (constraints.ppiMin) parts.push(`像素密度不低于 ${constraints.ppiMin}ppi`);
+    if (constraints.ramMin) parts.push(`内存至少 ${constraints.ramMin}GB`);
+    if (constraints.storageMin) parts.push(`硬盘至少 ${constraints.storageMin}GB`);
+    if (constraints.batteryMin) parts.push(`电池至少 ${constraints.batteryMin}Wh`);
+    if (constraints.refreshMin) parts.push(`刷新率至少 ${constraints.refreshMin}Hz`);
+    if (constraints.requireDiscreteGpu) parts.push("需要独显");
+    if (constraints.usages?.length) parts.push(`用途 ${constraints.usages.join("/")}`);
+
+    const names = [...outcome.overBudget, ...outcome.results]
+      .map((r) => `${r.laptop.brand} ${r.laptop.model}`)
+      .slice(0, 6);
+    if (names.length) parts.push(`当前已筛出 ${names.length} 台候选：${names.join("、")}`);
+
+    if (parts.length === 0) return undefined;
+    return `【用户已经确定的筛选条件】\n${parts.join("；")}`;
+  }, [submitted, constraints, outcome]);
 
   const runParse = useCallback(
     async (input: string) => {
@@ -189,6 +221,14 @@ export default function Home() {
           <GuideList
             entries={guideEntries}
             budget={constraints.budgetMax}
+          />
+        )}
+
+        {submitted && (
+          <AgentChat
+            seedContext={seedContext}
+            userKey={userKey}
+            available={!demoMode}
           />
         )}
 
