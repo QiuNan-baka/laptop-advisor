@@ -70,13 +70,27 @@ const USAGE_LABELS: Record<UsageTag, string> = {
 
 /** 一台实测机 → 一段可检索的文本 */
 function specText(l: Laptop): string {
+  const screen = [
+    `${l.screen.sizeInch} 英寸 ${l.screen.resolution}`,
+    `ppi ${l.screen.ppi}`,
+    l.screen.panel,
+    l.screen.refreshRate !== undefined ? `${l.screen.refreshRate}Hz` : "",
+    l.screen.brightness !== undefined ? `亮度 ${l.screen.brightness} nit` : "",
+    l.screen.colorGamut !== undefined ? `色域 ${l.screen.colorGamut}` : "",
+  ]
+    .filter(Boolean)
+    .join("，");
+
+  const cpu =
+    l.cpu.cores !== undefined ? `${l.cpu.name}（${l.cpu.cores} 核）` : l.cpu.name;
+
   return [
-    `${l.brand} ${l.model}｜售价 ${l.price} 元`,
-    `屏幕 ${l.screen.sizeInch} 英寸 ${l.screen.resolution}，ppi ${l.screen.ppi}，${l.screen.panel}，${l.screen.refreshRate}Hz，亮度 ${l.screen.brightness} nit，色域 ${l.screen.colorGamut}`,
-    `CPU ${l.cpu.name}（${l.cpu.cores} 核）｜显卡 ${l.gpu}`,
-    `内存 ${l.ram}GB｜硬盘 ${l.storage}GB`,
-    `重量 ${l.weight}kg｜电池 ${l.battery}Wh`,
-    l.ports.length ? `接口 ${l.ports.join("、")}` : "",
+    `${l.brand} ${l.model}｜售价 ${l.price} 元${l.subsidyPrice !== undefined ? `（国补价 ${l.subsidyPrice} 元）` : ""}`,
+    `屏幕 ${screen}`,
+    `CPU ${cpu}｜显卡 ${l.gpu}`,
+    `内存 ${l.ram}GB${l.storage !== undefined ? `｜硬盘 ${l.storage}GB` : ""}`,
+    `重量 ${l.weight}kg${l.battery !== undefined ? `｜电池 ${l.battery}Wh` : ""}`,
+    l.ports?.length ? `接口 ${l.ports.join("、")}` : "",
     l.tags.length ? `适用 ${l.tags.map((t) => USAGE_LABELS[t]).join("、")}` : "",
     `优点 ${l.highlights.join("；")}`,
     `短板 ${l.drawbacks.join("；")}`,
@@ -100,7 +114,7 @@ function reviewText(g: GuideEntry): string {
     .join("\n");
 }
 
-/** 全量知识块。94 条，进程启动时构建一次，之后常驻内存 */
+/** 全量知识块。实测精修机 + 笔吧带参数机（spec）+ 笔吧推荐名录（review），进程启动时构建一次，之后常驻内存 */
 export const chunks: Chunk[] = [
   ...laptops.map<Chunk>((l) => ({
     id: `spec:${l.id}`,

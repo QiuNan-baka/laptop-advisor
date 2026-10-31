@@ -1,9 +1,16 @@
 /**
- * 机型库（第一版，13 台）
+ * 机型库（实测精修 13 台 + 笔吧指南带参数 81 台，去重后 92 台）
  *
  * 【铁律】所有参数只来自这里，AI 永远不生成参数，只负责解释参数对你意味着什么。
  * 后续接入 RAG / Agent 时，这个文件就是检索语料，也是唯一的参数事实源。
+ *
+ * 结构：
+ *   - 本文件底部 `curatedLaptops`（13 台实测精修机，参数最全、优缺点精修过）
+ *   - `catalog-specs.ts`（81 台笔吧指南带参数机，部分字段缺失已按可选处理）
+ *   - `laptops`（导出）= 二者合并去重，是匹配/RAG/Agent 共用的唯一事实源
  */
+
+import { catalogSpecs } from "./catalog-specs";
 
 /** 用途标签：用来把"模糊需求"落到"可筛选的场景" */
 export type UsageTag =
@@ -18,8 +25,10 @@ export interface Laptop {
   id: string;
   brand: string;
   model: string;
-  /** 参考价（元） */
+  /** 参考价（原价，元） */
   price: number;
+  /** 国补价（元），没有国补则省略 */
+  subsidyPrice?: number;
   screen: {
     /** 物理尺寸（英寸） */
     sizeInch: number;
@@ -28,27 +37,28 @@ export interface Laptop {
     /** 像素密度 PPI —— "看得清"真正该看的指标 */
     ppi: number;
     panel: string;
-    /** 刷新率 Hz */
-    refreshRate: number;
-    /** 典型亮度 nits */
-    brightness: number;
-    /** 色域覆盖 */
-    colorGamut: string;
+    /** 刷新率 Hz（面板没标注则省略） */
+    refreshRate?: number;
+    /** 典型亮度 nits（没标注则省略） */
+    brightness?: number;
+    /** 色域覆盖（没标注则省略） */
+    colorGamut?: string;
   };
   cpu: {
     name: string;
-    cores: number;
+    /** 核心数（没标注则省略） */
+    cores?: number;
   };
   gpu: string;
   /** 内存 GB */
   ram: number;
-  /** 硬盘 GB */
-  storage: number;
+  /** 硬盘 GB（没标注则省略） */
+  storage?: number;
   /** 整机重量 kg */
   weight: number;
-  /** 电池容量 Wh */
-  battery: number;
-  ports: string[];
+  /** 电池容量 Wh（没标注则省略） */
+  battery?: number;
+  ports?: string[];
   tags: UsageTag[];
   /** 这台机器的真实优点（人话） */
   highlights: string[];
@@ -56,7 +66,7 @@ export interface Laptop {
   drawbacks: string[];
 }
 
-export const laptops: Laptop[] = [
+export const curatedLaptops: Laptop[] = [
   {
     id: "thinkbook-14p",
     brand: "联想",
@@ -386,6 +396,22 @@ export const laptops: Laptop[] = [
     ],
   },
 ];
+
+/**
+ * 全量机型池 = 实测精修机（13 台）+ 笔吧指南带参数机（81 台，去重后 92 台）。
+ *
+ * 去重规则：笔吧指南里与实测精修机「同品牌同型号」的机型跳过，保留实测精修机
+ * （它有更全的亮度/色域/核心数/接口，以及精修过的人话优缺点）。
+ */
+const normModel = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+const curatedKeys = new Set(
+  curatedLaptops.map((l) => normModel(`${l.brand}${l.model}`))
+);
+const dedupedCatalog = catalogSpecs.filter(
+  (l) => !curatedKeys.has(normModel(`${l.brand}${l.model}`))
+);
+
+export const laptops: Laptop[] = [...curatedLaptops, ...dedupedCatalog];
 
 /** 按 id 查找机型 */
 export function getLaptopById(id: string): Laptop | undefined {

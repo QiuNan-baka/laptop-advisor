@@ -29,6 +29,11 @@ export default function LaptopCard({ result }: LaptopCardProps) {
           <span className="text-sm font-semibold text-slate-900">
             ¥{laptop.price}
           </span>
+          {laptop.subsidyPrice !== undefined && (
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-600">
+              国补 ¥{laptop.subsidyPrice}
+            </span>
+          )}
           {overBudgetBy !== undefined && (
             <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-600">
               超预算 ¥{overBudgetBy}
@@ -45,9 +50,13 @@ export default function LaptopCard({ result }: LaptopCardProps) {
           value={`${laptop.screen.sizeInch}" ${laptop.screen.resolution}`}
         />
         <Spec label="清晰度" value={`${laptop.screen.ppi} ppi`} />
-        <Spec label="刷新率" value={`${laptop.screen.refreshRate} Hz`} />
+        {laptop.screen.refreshRate !== undefined && (
+          <Spec label="刷新率" value={`${laptop.screen.refreshRate} Hz`} />
+        )}
         <Spec label="内存" value={`${laptop.ram} GB`} />
-        <Spec label="硬盘" value={`${laptop.storage} GB`} />
+        {laptop.storage !== undefined && (
+          <Spec label="硬盘" value={`${laptop.storage} GB`} />
+        )}
         <Spec label="重量" value={`${laptop.weight} kg`} />
       </div>
 

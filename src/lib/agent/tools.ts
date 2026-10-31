@@ -242,15 +242,29 @@ export function safeJson(raw: string): unknown {
 // ---------- 单台机器的完整文本 ----------
 
 function detailText(l: Laptop): string {
+  const screen = [
+    `${l.screen.sizeInch} 英寸 ${l.screen.resolution}`,
+    `ppi ${l.screen.ppi}`,
+    l.screen.panel,
+    l.screen.refreshRate !== undefined ? `${l.screen.refreshRate}Hz` : "",
+    l.screen.brightness !== undefined ? `亮度 ${l.screen.brightness} nit` : "",
+    l.screen.colorGamut !== undefined ? `色域 ${l.screen.colorGamut}` : "",
+  ]
+    .filter(Boolean)
+    .join("，");
+
+  const cpu =
+    l.cpu.cores !== undefined ? `${l.cpu.name}（${l.cpu.cores} 核）` : l.cpu.name;
+
   return [
     `【${l.brand} ${l.model}】id=${l.id}`,
-    `价格：${l.price} 元`,
-    `屏幕：${l.screen.sizeInch} 英寸 ${l.screen.resolution}，ppi ${l.screen.ppi}，${l.screen.panel}，${l.screen.refreshRate}Hz，亮度 ${l.screen.brightness} nit，色域 ${l.screen.colorGamut}`,
-    `CPU：${l.cpu.name}（${l.cpu.cores} 核）`,
+    `价格：${l.price} 元${l.subsidyPrice !== undefined ? `（国补价 ${l.subsidyPrice} 元）` : ""}`,
+    `屏幕：${screen}`,
+    `CPU：${cpu}`,
     `显卡：${l.gpu}`,
-    `内存：${l.ram}GB　硬盘：${l.storage}GB`,
-    `重量：${l.weight}kg　电池：${l.battery}Wh`,
-    `接口：${l.ports.join("、") || "无"}`,
+    `内存：${l.ram}GB${l.storage !== undefined ? `　硬盘：${l.storage}GB` : ""}`,
+    `重量：${l.weight}kg${l.battery !== undefined ? `　电池：${l.battery}Wh` : ""}`,
+    l.ports?.length ? `接口：${l.ports.join("、")}` : "",
     `优点：${l.highlights.join("；")}`,
     `短板：${l.drawbacks.join("；")}`,
   ].join("\n");
@@ -409,17 +423,17 @@ function runCompare(args: unknown): ToolResult {
   }
 
   const rows: [string, (l: Laptop) => string][] = [
-    ["价格", (l) => `${l.price} 元`],
+    ["价格", (l) => `${l.price} 元${l.subsidyPrice !== undefined ? `（国补 ${l.subsidyPrice}）` : ""}`],
     ["屏幕", (l) => `${l.screen.sizeInch}" ${l.screen.resolution} / ${l.screen.ppi}ppi`],
-    ["刷新率", (l) => `${l.screen.refreshRate}Hz`],
-    ["亮度", (l) => `${l.screen.brightness} nit`],
-    ["色域", (l) => l.screen.colorGamut],
+    ["刷新率", (l) => (l.screen.refreshRate !== undefined ? `${l.screen.refreshRate}Hz` : "未标注")],
+    ["亮度", (l) => (l.screen.brightness !== undefined ? `${l.screen.brightness} nit` : "未标注")],
+    ["色域", (l) => l.screen.colorGamut ?? "未标注"],
     ["CPU", (l) => l.cpu.name],
     ["显卡", (l) => l.gpu],
     ["内存", (l) => `${l.ram}GB`],
-    ["硬盘", (l) => `${l.storage}GB`],
+    ["硬盘", (l) => (l.storage !== undefined ? `${l.storage}GB` : "未标注")],
     ["重量", (l) => `${l.weight}kg`],
-    ["电池", (l) => `${l.battery}Wh`],
+    ["电池", (l) => (l.battery !== undefined ? `${l.battery}Wh` : "未标注")],
   ];
 
   const table = rows

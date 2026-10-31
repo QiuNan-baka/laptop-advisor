@@ -118,10 +118,10 @@ export function satisfies(l: Laptop, c: Constraints): boolean {
   if (c.screenSizeMin !== undefined && l.screen.sizeInch < c.screenSizeMin) return false;
   if (c.screenSizeMax !== undefined && l.screen.sizeInch > c.screenSizeMax) return false;
   if (c.ppiMin !== undefined && l.screen.ppi < c.ppiMin) return false;
-  if (c.refreshMin !== undefined && l.screen.refreshRate < c.refreshMin) return false;
+  if (c.refreshMin !== undefined && (l.screen.refreshRate === undefined || l.screen.refreshRate < c.refreshMin)) return false;
   if (c.ramMin !== undefined && l.ram < c.ramMin) return false;
-  if (c.storageMin !== undefined && l.storage < c.storageMin) return false;
-  if (c.batteryMin !== undefined && l.battery < c.batteryMin) return false;
+  if (c.storageMin !== undefined && (l.storage === undefined || l.storage < c.storageMin)) return false;
+  if (c.batteryMin !== undefined && (l.battery === undefined || l.battery < c.batteryMin)) return false;
   if (c.requireDiscreteGpu && !/RTX|GTX|Radeon RX/.test(l.gpu)) return false;
   return true;
 }
