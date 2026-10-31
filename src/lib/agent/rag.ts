@@ -117,7 +117,7 @@ function reviewText(g: GuideEntry): string {
     .join("\n");
 }
 
-/** 全量知识块。实测精修机 + 笔吧带参数机（spec）+ 笔吧推荐名录（review），进程启动时构建一次，之后常驻内存 */
+/** 全量知识块。笔吧带参数机（spec）+ 笔吧推荐名录（review），进程启动时构建一次，之后常驻内存 */
 export const chunks: Chunk[] = [
   ...laptops.map<Chunk>((l) => ({
     id: `spec:${l.id}`,

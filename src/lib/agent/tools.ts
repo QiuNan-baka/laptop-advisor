@@ -123,7 +123,7 @@ export const TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "机型 id，如 thinkbook-14p" },
+          id: { type: "string", description: "机型 id，如 cat-001" },
           name: { type: "string", description: "机型名称关键词，如 无界15X" },
         },
       },
