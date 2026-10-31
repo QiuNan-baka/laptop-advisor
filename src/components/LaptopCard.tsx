@@ -1,6 +1,7 @@
 "use client";
 
 import type { MatchResult } from "@/lib/match";
+import { formatRam } from "@/data/laptops";
 
 function Spec({ label, value }: { label: string; value: string }) {
   return (
@@ -53,7 +54,7 @@ export default function LaptopCard({ result }: LaptopCardProps) {
         {laptop.screen.refreshRate !== undefined && (
           <Spec label="刷新率" value={`${laptop.screen.refreshRate} Hz`} />
         )}
-        <Spec label="内存" value={`${laptop.ram} GB`} />
+        <Spec label="内存" value={formatRam(laptop)} />
         {laptop.storage !== undefined && (
           <Spec label="硬盘" value={`${laptop.storage} GB`} />
         )}

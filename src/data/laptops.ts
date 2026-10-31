@@ -52,6 +52,10 @@ export interface Laptop {
   gpu: string;
   /** 内存 GB */
   ram: number;
+  /** 内存类型，如 "DDR5" / "LPDDR5x" / "统一内存"（没标注则省略） */
+  ramType?: string;
+  /** 内存速率 MHz（如 5600；统一内存 / 没标注则省略） */
+  ramSpeed?: number;
   /** 硬盘 GB（没标注则省略） */
   storage?: number;
   /** 整机重量 kg */
@@ -416,4 +420,18 @@ export const laptops: Laptop[] = [...curatedLaptops, ...dedupedCatalog];
 /** 按 id 查找机型 */
 export function getLaptopById(id: string): Laptop | undefined {
   return laptops.find((l) => l.id === id);
+}
+
+/**
+ * 把内存规格拼成一句人话：
+ *   16GB DDR5 5600  /  32GB LPDDR5x 8533  /  16GB 统一内存  /  24GB
+ * 类型或速率缺失时自动省略对应部分，绝不编造。
+ */
+export function formatRam(l: Laptop): string {
+  const parts: string[] = [`${l.ram}GB`];
+  if (l.ramType) {
+    parts.push(l.ramType);
+    if (l.ramSpeed !== undefined) parts.push(`${l.ramSpeed}`);
+  }
+  return parts.join(" ");
 }

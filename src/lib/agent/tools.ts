@@ -23,7 +23,7 @@
 import { z } from "zod";
 import { BOUNDS } from "@/lib/ai/schema";
 import { CONSTRAINT_LABELS, CONSTRAINT_UNITS, type Constraints } from "@/data/dictionary";
-import { laptops, type Laptop } from "@/data/laptops";
+import { formatRam, laptops, type Laptop } from "@/data/laptops";
 import {
   formatPriceBand,
   GUIDE_CATEGORY_LABELS,
@@ -265,7 +265,7 @@ function detailText(l: Laptop): string {
     `屏幕：${screen}`,
     `CPU：${cpu}`,
     `显卡：${l.gpu}`,
-    `内存：${l.ram}GB${l.storage !== undefined ? `　硬盘：${l.storage}GB` : ""}`,
+    `内存：${formatRam(l)}${l.storage !== undefined ? `　硬盘：${l.storage}GB` : ""}`,
     `重量：${l.weight}kg${l.battery !== undefined ? `　电池：${l.battery}Wh` : ""}`,
     l.ports?.length ? `接口：${l.ports.join("、")}` : "",
     `优点：${l.highlights.join("；")}`,
@@ -433,7 +433,7 @@ function runCompare(args: unknown): ToolResult {
     ["色域", (l) => l.screen.colorGamut ?? "未标注"],
     ["CPU", (l) => formatCpu(l.cpu.name)],
     ["显卡", (l) => l.gpu],
-    ["内存", (l) => `${l.ram}GB`],
+    ["内存", (l) => formatRam(l)],
     ["硬盘", (l) => (l.storage !== undefined ? `${l.storage}GB` : "未标注")],
     ["重量", (l) => `${l.weight}kg`],
     ["电池", (l) => (l.battery !== undefined ? `${l.battery}Wh` : "未标注")],

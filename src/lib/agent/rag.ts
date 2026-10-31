@@ -19,7 +19,7 @@
  * 检索到的每一块都会带出处，界面上能直接点回原文——这是「可解释」。
  */
 
-import { laptops, type Laptop, type UsageTag } from "@/data/laptops";
+import { formatRam, laptops, type Laptop, type UsageTag } from "@/data/laptops";
 import { formatCpu } from "@/lib/cpu";
 import {
   formatPriceBand,
@@ -91,7 +91,7 @@ function specText(l: Laptop): string {
     `${l.brand} ${l.model}｜售价 ${l.price} 元${l.subsidyPrice !== undefined ? `（国补价 ${l.subsidyPrice} 元）` : ""}`,
     `屏幕 ${screen}`,
     `CPU ${cpu}｜显卡 ${l.gpu}`,
-    `内存 ${l.ram}GB${l.storage !== undefined ? `｜硬盘 ${l.storage}GB` : ""}`,
+    `内存 ${formatRam(l)}${l.storage !== undefined ? `｜硬盘 ${l.storage}GB` : ""}`,
     `重量 ${l.weight}kg${l.battery !== undefined ? `｜电池 ${l.battery}Wh` : ""}`,
     l.ports?.length ? `接口 ${l.ports.join("、")}` : "",
     l.tags.length ? `适用 ${l.tags.map((t) => USAGE_LABELS[t]).join("、")}` : "",
