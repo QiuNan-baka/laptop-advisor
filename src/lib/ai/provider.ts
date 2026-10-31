@@ -22,9 +22,16 @@ export interface ProviderConfig {
   model: string;
   /** 这个供应商是否支持流式（几乎所有都支持，留口子备用） */
   stream: boolean;
+  /**
+   * 该供应商专有的额外请求参数，会被合并进 /chat/completions 的请求体。
+   * 例：千问的 enable_thinking。如果对方端点不认识这个参数，client.ts 会自动
+   * 去掉它重试一次（见 callWithCompat）。
+   */
+  extraBody?: Record<string, unknown>;
 }
 
 export type ProviderId =
+  | "qwen"
   | "deepseek"
   | "zhipu"
   | "moonshot"
@@ -35,8 +42,28 @@ export type ProviderId =
 /** 常见供应商的默认值，用户只填 Key 就能用 */
 export const PRESETS: Record<
   Exclude<ProviderId, "custom">,
-  { name: string; baseUrl: string; model: string; keyEnv: string }
+  {
+    name: string;
+    baseUrl: string;
+    model: string;
+    keyEnv: string;
+    extraBody?: Record<string, unknown>;
+  }
 > = {
+  qwen: {
+    name: "通义千问",
+    // 阿里云百炼的「OpenAI 兼容模式」入口。老域名长期可用、不需要业务空间 ID，
+    // 对新手最省事；如果以后追求稳定性，可换成 {WorkspaceId}.cn-beijing.maas.aliyuncs.com。
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    // 新人免费额度按模型独立发放（每个模型 100 万 token，90 天有效，仅北京地域）。
+    // qwen3.8-flash 是当前档位里最快最便宜的，翻译需求这件事绰绰有余。
+    model: "qwen3.8-flash",
+    keyEnv: "DASHSCOPE_API_KEY",
+    // 千问的 qwen3 系列默认会「先思考再回答」，思考内容进 reasoning_content。
+    // 我们只要一句话的 JSON，不需要推理过程——关掉能省一半 token 和等待时间。
+    // 万一换成不认识这个参数的模型，client.ts 会自动去掉它重试。
+    extraBody: { enable_thinking: false },
+  },
   deepseek: {
     name: "DeepSeek",
     baseUrl: "https://api.deepseek.com/v1",
@@ -71,6 +98,7 @@ export const PRESETS: Record<
 
 /** 供应商白名单：custom 模式也允许，但必须自己给 baseUrl */
 const KNOWN: ProviderId[] = [
+  "qwen",
   "deepseek",
   "zhipu",
   "moonshot",
@@ -91,7 +119,8 @@ function envString(key: string): string {
  *                    这是「三层降级」的第二层：评委可以用自己的 Key 试用。
  */
 export function resolveProvider(overrideKey?: string): ProviderConfig | null {
-  const rawId = (envString("AI_PROVIDER") || "deepseek").toLowerCase();
+  // 默认走通义千问：新人免费额度最大方，评委/访客最容易复现
+  const rawId = (envString("AI_PROVIDER") || "qwen").toLowerCase();
   const id = (KNOWN.includes(rawId as ProviderId) ? rawId : "custom") as ProviderId;
 
   // 1. 完全自定义：一切以环境变量为准，支持任何 OpenAI 兼容端点
@@ -107,12 +136,19 @@ export function resolveProvider(overrideKey?: string): ProviderConfig | null {
 
   // 2. 预置供应商：默认值打底，环境变量可覆盖
   const preset = PRESETS[id];
-  const baseUrl = envString("AI_BASE_URL") || preset.baseUrl;
+  const baseUrl = (envString("AI_BASE_URL") || preset.baseUrl).replace(/\/+$/, "");
   const model = envString("AI_MODEL") || preset.model;
   const apiKey = overrideKey || (preset.keyEnv ? envString(preset.keyEnv) : "");
   if (!apiKey && !isLocalUrl(baseUrl)) return null;
 
-  return { name: preset.name, baseUrl: baseUrl.replace(/\/+$/, ""), apiKey, model, stream: true };
+  return {
+    name: preset.name,
+    baseUrl,
+    apiKey,
+    model,
+    stream: true,
+    extraBody: preset.extraBody,
+  };
 }
 
 function isLocalUrl(url: string): boolean {

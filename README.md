@@ -49,7 +49,7 @@ src/
 └── lib/
     ├── match.ts             规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
     └── ai/
-        ├── provider.ts      供应商适配：5 家预置 + 任意 OpenAI 兼容端点
+        ├── provider.ts      供应商适配：6 家预置 + 任意 OpenAI 兼容端点
         ├── prompt.ts        Prompt A：字段语义 + 反例 + 强制 JSON
         ├── schema.ts        Zod 契约 + 现实边界（越界直接拒收）
         ├── client.ts        调用 + 超时 + 校验失败带错重试
@@ -63,7 +63,8 @@ src/
 
 | `AI_PROVIDER` | 供应商 | 默认模型 |
 |---|---|---|
-| `deepseek`（默认） | DeepSeek | deepseek-chat |
+| `qwen`（默认） | 通义千问（阿里云百炼） | qwen3.8-flash |
+| `deepseek` | DeepSeek | deepseek-chat |
 | `zhipu` | 智谱 GLM | glm-4-flash |
 | `moonshot` | Kimi | moonshot-v1-8k |
 | `siliconflow` | 硅基流动 | Qwen2.5-7B |
@@ -128,10 +129,11 @@ npm run dev
 
 | 变量名 | 必填 | 说明 |
 |---|---|---|
-| `AI_PROVIDER` | 否 | 供应商，默认 `deepseek`；也可 `zhipu` / `moonshot` / `siliconflow` / `ollama` / `custom` |
+| `AI_PROVIDER` | 否 | 供应商，默认 `qwen`；也可 `deepseek` / `zhipu` / `moonshot` / `siliconflow` / `ollama` / `custom` |
 | `AI_MODEL` | 否 | 模型名，留空用该供应商默认值 |
 | `AI_BASE_URL` | 否 | 接口地址，留空用默认值；`custom` 模式必填 |
-| `DEEPSEEK_API_KEY` | 否 | DeepSeek 的 Key，留空则走本地关键词兜底 |
+| `DASHSCOPE_API_KEY` | 否 | 通义千问的 Key，留空则走本地关键词兜底 |
+| `DEEPSEEK_API_KEY` | 否 | DeepSeek 的 Key，备选模型 |
 | `ZHIPU_API_KEY` | 否 | 智谱 GLM 的 Key，备选模型 |
 | `MOONSHOT_API_KEY` | 否 | Kimi 的 Key，备选模型 |
 | `SILICONFLOW_API_KEY` | 否 | 硅基流动的 Key，备选模型 |
@@ -147,7 +149,7 @@ npm run dev
 - [x] 规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
 - [x] 主界面组件化（6 个组件 + 91 行编排层）
 - [x] **AI 接入：`/api/parse` 路由 + Prompt A + Zod 校验 + 失败重试**
-- [x] **可替换供应商：5 家预置 + 任意 OpenAI 兼容端点**
+- [x] **可替换供应商：6 家预置 + 任意 OpenAI 兼容端点**
 - [x] **三层降级：内置 Key → 访客自带 Key → 本地词典兜底**
 - [x] **界面接上 AI：加载态 / 状态条 / 错误提示 / 连点取消 / 访客自带 Key**
 - [ ] 流式输出与思考状态可视化

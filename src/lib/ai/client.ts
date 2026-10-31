@@ -34,8 +34,10 @@ interface ChatPayload {
   messages: { role: "system" | "user"; content: string }[];
   temperature: number;
   max_tokens: number;
-  /** 要求 OpenAI 兼容端点返回严格 JSON（DeepSeek/智谱/通义都支持） */
-  response_format: { type: "json_object" };
+  /** 要求 OpenAI 兼容端点返回严格 JSON（DeepSeek/智谱/通义都支持）；降级时可不传 */
+  response_format?: { type: "json_object" };
+  /** 供应商专有参数，如千问的 enable_thinking */
+  [key: string]: unknown;
 }
 
 interface ChatCompletionChoice {
@@ -47,66 +49,121 @@ interface ChatCompletionResponse {
   error?: { message?: string };
 }
 
-async function callOnce(
-  provider: ProviderConfig,
-  messages: ChatPayload["messages"]
-): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+/**
+ * 请求降级阶梯：不同厂商对「非标准参数」的容忍度不一样。
+ *
+ * 千问支持 response_format 和 enable_thinking；
+ * 但万一用户把 AI_MODEL 换成某个小模型、或接了个自建网关不认这些字段，
+ * 服务端会直接返回 400。这时候不该整条链路失败——而是把可选参数一个个摘掉重试。
+ *
+ * 摘的顺序就是阶梯顺序：先摘供应商专有参数（最可能不被认识），再摘 response_format
+ * （最标准的那个，最后才动）。
+ */
+type ParamLevel = "full" | "noExtra" | "minimal";
 
+const PARAM_LEVELS: ParamLevel[] = ["full", "noExtra", "minimal"];
+
+function buildPayload(
+  provider: ProviderConfig,
+  messages: ChatPayload["messages"],
+  level: ParamLevel
+): ChatPayload {
   const payload: ChatPayload = {
     model: provider.model,
     messages,
     // 翻译任务要稳定复现，不要创造力
     temperature: 0.1,
     max_tokens: 1_200,
-    response_format: { type: "json_object" },
   };
 
-  try {
-    const res = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(provider.apiKey
-          ? { Authorization: `Bearer ${provider.apiKey}` }
-          : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-      // 后端路由里禁止缓存，每次都要真跑模型
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new AiCallError(
-        `模型接口返回 ${res.status}${text ? `：${text.slice(0, 200)}` : ""}`,
-        "http"
-      );
-    }
-
-    const data = (await res.json()) as ChatCompletionResponse;
-    const content = data.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      throw new AiCallError(
-        data.error?.message ?? "模型没有返回任何内容",
-        "empty"
-      );
-    }
-    return content;
-  } catch (error) {
-    if (error instanceof AiCallError) throw error;
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new AiCallError(`模型响应超过 ${TIMEOUT_MS / 1000} 秒，已中止`, "timeout");
-    }
-    throw new AiCallError(
-      error instanceof Error ? error.message : "调用模型时发生未知错误",
-      "network"
-    );
-  } finally {
-    clearTimeout(timer);
+  if (level === "full" && provider.extraBody) {
+    Object.assign(payload, provider.extraBody);
   }
+  if (level !== "minimal") {
+    payload.response_format = { type: "json_object" };
+  }
+  return payload;
+}
+
+/**
+ * 判断 400 是不是「参数不认识」造成的。这类错误值得降级重试；
+ * 而 401（Key 错）、404（模型名错）、429（限流）重试也没用，直接抛。
+ */
+function isUnsupportedParamError(status: number, body: string): boolean {
+  if (status !== 400 && status !== 422) return false;
+  return /parameter|param|unsupported|not support|unknown|invalid|unrecognized/i.test(
+    body
+  );
+}
+
+async function callOnce(
+  provider: ProviderConfig,
+  messages: ChatPayload["messages"]
+): Promise<string> {
+  let lastError: AiCallError | null = null;
+
+  for (const level of PARAM_LEVELS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const payload = buildPayload(provider, messages, level);
+
+    try {
+      const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(provider.apiKey
+            ? { Authorization: `Bearer ${provider.apiKey}` }
+            : {}),
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+        // 后端路由里禁止缓存，每次都要真跑模型
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+
+        // 参数不被认识 → 摘掉可选参数再试一次（不消耗重试次数）
+        if (isUnsupportedParamError(res.status, text) && level !== "minimal") {
+          lastError = new AiCallError(
+            `模型接口返回 ${res.status}${text ? `：${text.slice(0, 200)}` : ""}`,
+            "http"
+          );
+          continue;
+        }
+
+        throw new AiCallError(
+          `模型接口返回 ${res.status}${text ? `：${text.slice(0, 200)}` : ""}`,
+          "http"
+        );
+      }
+
+      const data = (await res.json()) as ChatCompletionResponse;
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) {
+        throw new AiCallError(
+          data.error?.message ?? "模型没有返回任何内容",
+          "empty"
+        );
+      }
+      return content;
+    } catch (error) {
+      if (error instanceof AiCallError) throw error;
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new AiCallError(`模型响应超过 ${TIMEOUT_MS / 1000} 秒，已中止`, "timeout");
+      }
+      throw new AiCallError(
+        error instanceof Error ? error.message : "调用模型时发生未知错误",
+        "network"
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError ?? new AiCallError("调用模型失败", "http");
 }
 
 /**
