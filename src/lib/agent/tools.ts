@@ -30,6 +30,7 @@ import {
   guideCatalog,
 } from "@/data/guide-catalog";
 import { satisfies } from "@/lib/match";
+import { formatCpu } from "@/lib/cpu";
 import { formatHitsForModel, searchKnowledge, toCitations, type Citation } from "./rag";
 
 // ---------- 工具执行结果 ----------
@@ -254,7 +255,9 @@ function detailText(l: Laptop): string {
     .join("，");
 
   const cpu =
-    l.cpu.cores !== undefined ? `${l.cpu.name}（${l.cpu.cores} 核）` : l.cpu.name;
+    l.cpu.cores !== undefined
+      ? `${formatCpu(l.cpu.name)}（${l.cpu.cores} 核）`
+      : formatCpu(l.cpu.name);
 
   return [
     `【${l.brand} ${l.model}】id=${l.id}`,
@@ -428,7 +431,7 @@ function runCompare(args: unknown): ToolResult {
     ["刷新率", (l) => (l.screen.refreshRate !== undefined ? `${l.screen.refreshRate}Hz` : "未标注")],
     ["亮度", (l) => (l.screen.brightness !== undefined ? `${l.screen.brightness} nit` : "未标注")],
     ["色域", (l) => l.screen.colorGamut ?? "未标注"],
-    ["CPU", (l) => l.cpu.name],
+    ["CPU", (l) => formatCpu(l.cpu.name)],
     ["显卡", (l) => l.gpu],
     ["内存", (l) => `${l.ram}GB`],
     ["硬盘", (l) => (l.storage !== undefined ? `${l.storage}GB` : "未标注")],

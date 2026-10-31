@@ -20,6 +20,7 @@
  */
 
 import { laptops, type Laptop, type UsageTag } from "@/data/laptops";
+import { formatCpu } from "@/lib/cpu";
 import {
   formatPriceBand,
   GUIDE_CATEGORY_LABELS,
@@ -82,7 +83,9 @@ function specText(l: Laptop): string {
     .join("，");
 
   const cpu =
-    l.cpu.cores !== undefined ? `${l.cpu.name}（${l.cpu.cores} 核）` : l.cpu.name;
+    l.cpu.cores !== undefined
+      ? `${formatCpu(l.cpu.name)}（${l.cpu.cores} 核）`
+      : formatCpu(l.cpu.name);
 
   return [
     `${l.brand} ${l.model}｜售价 ${l.price} 元${l.subsidyPrice !== undefined ? `（国补价 ${l.subsidyPrice} 元）` : ""}`,

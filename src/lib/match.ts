@@ -11,6 +11,7 @@
  */
 
 import { laptops, type Laptop } from "@/data/laptops";
+import { formatCpu } from "@/lib/cpu";
 import {
   CONSTRAINT_LABELS,
   CONSTRAINT_UNITS,
@@ -150,8 +151,9 @@ function buildReason(l: Laptop, c: Constraints): string {
   }
   if (c.weightMax !== undefined) parts.push(`${l.weight}kg`);
   if (c.budgetMax !== undefined) parts.push(`到手 ${l.price} 元`);
-  if (c.ramMin !== undefined) parts.push(`${l.ram}GB 内存`);
-  if (c.requireDiscreteGpu) parts.push(l.gpu);
+  // 处理器 + 显卡永远显示且相邻：这两项是用户看一台机器的第一眼，
+  // 内存容量交给下面的参数格去显示，这里不重复占位。
+  parts.push(formatCpu(l.cpu.name), l.gpu);
   if (parts.length === 0) parts.push(l.highlights[0] ?? "综合表现均衡");
   return parts.join(" · ");
 }

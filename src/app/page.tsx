@@ -183,6 +183,12 @@ export default function Home() {
           onUserKeyChange={setUserKey}
         />
 
+        <AgentChat
+          seedContext={seedContext}
+          userKey={userKey}
+          available={!demoMode}
+        />
+
         {result && (
           <TranslationStatus result={result} demoMode={demoMode} />
         )}
@@ -221,14 +227,6 @@ export default function Home() {
           <GuideList
             entries={guideEntries}
             budget={constraints.budgetMax}
-          />
-        )}
-
-        {submitted && (
-          <AgentChat
-            seedContext={seedContext}
-            userKey={userKey}
-            available={!demoMode}
           />
         )}
 
