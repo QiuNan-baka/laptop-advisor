@@ -17,6 +17,7 @@ import {
   CONSTRAINT_UNITS,
   dictionary,
   extractBudget,
+  extractNumbers,
   type Constraints,
 } from "@/data/dictionary";
 
@@ -70,6 +71,21 @@ export function parseRequirement(text: string): ParseResult {
     });
   }
 
+  // 1.5 显式数字参数：32G内存 / 1TB / 2kg / 15.6英寸 / 120Hz。
+  // 用户亲口报的具体值比词典默认值可信，所以放在词典之前提取。
+  const numbers = extractNumbers(text);
+  if (Object.keys(numbers).length > 0) {
+    for (const [k, v] of Object.entries(numbers)) {
+      const key = k as keyof Constraints;
+      (constraints[key] as number) = v as number;
+    }
+    traces.push({
+      label: "具体参数",
+      explain: "你报出了具体数值，我直接按你给的数字来筛。",
+      keys: Object.keys(numbers) as (keyof Constraints)[],
+    });
+  }
+
   // 2. 词典匹配
   const lower = text.toLowerCase();
   for (const entry of dictionary) {
@@ -79,6 +95,12 @@ export function parseRequirement(text: string): ParseResult {
     // 预算类词典只在用户没说具体数字时才生效
     if (entry.id === "cheap" && constraints.budgetMax !== undefined) continue;
     if (entry.id === "big-storage" && constraints.storageMin !== undefined) continue;
+    // 显式数字优先：用户报过 32G 内存就别再拿词典的 32GB 覆盖、也别再报 16GB。
+    if (entry.id === "big-ram" && constraints.ramMin !== undefined) continue;
+    // 用户报过具体重量（2kg 等）就不再叠加「轻」的 1.5kg 默认值
+    if (entry.id === "portable" && constraints.weightMax !== undefined) continue;
+    // 用户报过具体尺寸就不再叠加「屏幕大」的默认值
+    if (entry.id === "big-screen" && constraints.screenSizeMin !== undefined) continue;
     // 互斥：已经命中「轻度游戏」就不再叠加「重度游戏」的独显硬约束。
     // 否则「轻度玩3a」会同时命中两条（含"轻度玩"+含"玩3A"），
     // 既加 preferStrongIGpu 又加 requireDiscreteGpu:true，自相矛盾。

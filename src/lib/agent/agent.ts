@@ -22,9 +22,10 @@
  */
 
 import type { ProviderConfig } from "@/lib/ai/provider";
-import { describeCall, executeTool, safeJson, TOOLS } from "./tools";
+import { describeCall, describeConstraints, executeTool, safeJson, TOOLS } from "./tools";
 import type { ConstraintPatch } from "./tools";
 import type { Citation } from "./rag";
+import { parseRequirement } from "@/lib/match";
 
 /** 最多几轮工具调用。超了必须收尾，不许无限查下去。 */
 const MAX_STEPS = 6;
@@ -75,13 +76,23 @@ const AGENT_SYSTEM_PROMPT = `你是一台笔记本选购顾问。你不是在"�
 4. 用户问"这台有什么缺点/散热怎么样/同价位别的怎么样"，调用 search_reviews 检索评测资料，回答时说明依据来自哪条资料。
 5. 用户问"这两台差在哪"，调用 compare_laptops。
 6. 需要某台机器的完整参数，调用 get_laptop_detail。
-7. 用户明确要改筛选条件（"预算提到 7000""加个独显""重量不超过 1.5kg""不要独显了""去掉重量限制"），调用 update_constraints 把变更打包，然后停下来等用户确认同步。纯咨询、纯对比、聊缺点时不要调用它。
+7. 用户要改筛选条件时，调用 update_constraints 把变更打包，然后停下来等用户确认同步。
+   **判定标准不是「他有没有用祈使句」，而是「他是不是给了一个和当前条件不同的新数值/新要求」。**
+   下面这些都算，必须调用 update_constraints：
+   - 祈使句："预算提到 7000""加个独显""重量不超过 1.5kg""不要独显了""去掉重量限制"
+   - **陈述句/补充说明**："预算9000之内""9000以内""预算最多九千""要 32G 内存""屏幕大点""轻一点，两公斤以内"
+     —— 这类句子只是在陈述一个新边界，没写"改"字，但含义就是"把预算定在 9000"，
+     和当前条件不一样就必须打包成条件变更，否则用户点不到"同步至匹配结果"。
+   **判断依据是和 seedContext 里的当前条件比对：新数值 ≠ 当前值（或当前没有）→ 调工具；完全一样 → 不用调。**
+   纯咨询、纯对比、纯聊缺点时不要调用它。
 
 【铁律，违反即失败】
 - 只提参数库里真实存在的机型。参数库里没有的，就说"我的参数库里没有这台"，不要编。
 - 不编造任何数字。价格、重量、电池、ppi 都必须来自工具返回。
 - 如果工具返回的信息不足以回答，就直说"这个信息我查不到"，不要用常识补全。
 - 预算是最硬的约束。超预算的机器只能"告知"，不能"推荐"。
+- 用户这句话如果和笔记本选购完全无关（不是参数、用途、机型咨询、对比、评测），
+  不要调用任何工具，直接回答「暂时无法识别该内容」。
 
 【回答风格】
 - 中文，口语，像朋友帮你选电脑。不要写"综上所述""首先其次最后"这种废话。
@@ -251,13 +262,17 @@ export async function runAgent({ question, provider, emit, seedContext }: RunAge
     {
       role: "user",
       content: seedContext
-        ? `${seedContext}\n\n用户原话："""${question}"""\n\n请开始查资料并回答。`
+        ? `${seedContext}\n\n用户原话："""${question}"""\n\n` +
+          `（提醒：如果这句话里出现了和上面条件不同的新数值——哪怕是「预算9000之内」这种陈述句——` +
+          `先调 update_constraints 把变更打包，再回答。条件完全没变就不用调。）\n\n请开始查资料并回答。`
         : `用户原话："""${question}"""\n\n请开始查资料并回答。`,
     },
   ];
 
   const cited = new Map<string, Citation>();
   let steps = 0;
+  // 本轮是否已经产出过「条件变更」（模型调 update_constraints 或本地兜底）。避免重复触发同步按钮。
+  let patched = false;
 
   try {
     for (let step = 0; step < MAX_STEPS; step += 1) {
@@ -317,6 +332,7 @@ export async function runAgent({ question, provider, emit, seedContext }: RunAge
 
         // 条件变更：单独发一条事件给前端，触发「是否同步」确认区
         if (result.constraintPatch) {
+          patched = true;
           emit({
             type: "constraint_patch",
             patch: result.constraintPatch,
@@ -343,6 +359,24 @@ export async function runAgent({ question, provider, emit, seedContext }: RunAge
     if (cited.size > 0) {
       emit({ type: "citations", items: [...cited.values()] });
     }
+
+    // 兜底：模型这一轮没调 update_constraints，但用户的话里可能藏着明确的参数/用途变更。
+    // 典型场景：用户问「预算9000之内」（陈述句），小模型有时把它当普通问题直接答了，
+    // 于是没有 constraint_patch → 「同步至匹配结果」按钮消失。
+    // 这里用本地规则引擎再解析一次：解析出约束就补发一个 patch，让按钮出现。
+    // 纯咨询（「这几台差在哪」「散热怎么样」）解析不出任何约束，不会误触发。
+    if (!patched) {
+      const fallback = parseRequirement(question);
+      if (Object.keys(fallback.constraints).length > 0) {
+        const summary = describeConstraints(fallback.constraints).join("、");
+        emit({
+          type: "constraint_patch",
+          patch: { set: fallback.constraints },
+          summary: `我从你这句话里读到了这些条件：${summary}。点「同步至匹配结果」会把它合并进当前条件并重新筛选。`,
+        });
+      }
+    }
+
     emit({ type: "done", steps, elapsedMs: Date.now() - startedAt });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Agent 运行出错";

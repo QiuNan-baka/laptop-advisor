@@ -217,3 +217,47 @@ export function extractBudget(text: string): Constraints {
   }
   return patch;
 }
+
+/** 从自由文本里抽取「数字 + 单位」的显式参数，如「32G内存」「1TB」「两公斤」「15.6英寸」「120Hz」 */
+export function extractNumbers(text: string): Constraints {
+  const patch: Constraints = {};
+
+  // 内存：32G内存 / 32GB内存 / 内存32G / 16G
+  const ram = text.match(/(\d{1,3})\s*(?:g|gb)\s*(?:内存|运存)?/i);
+  if (ram) {
+    const v = Number(ram[1]);
+    if (v >= 4 && v <= 128) patch.ramMin = v;
+  }
+
+  // 硬盘：1T / 2TB（转成 GB）
+  const tb = text.match(/(\d{1,2})\s*(?:t|tb)\b/i);
+  if (tb) {
+    const v = Number(tb[1]);
+    if (v >= 1 && v <= 8) patch.storageMin = v * 1024;
+  }
+
+  // 重量：两公斤 / 2kg / 1.5千克（中文数字只处理「两」，其他交给词典）
+  const cnWeight = text.match(/两\s*(?:公斤|千克|kg)/i);
+  if (cnWeight) patch.weightMax = 2;
+  const numWeight = text.match(/(\d(?:\.\d)?)\s*(?:公斤|千克|kg)\b/i);
+  if (numWeight) {
+    const v = Number(numWeight[1]);
+    if (v >= 0.5 && v <= 5) patch.weightMax = v;
+  }
+
+  // 屏幕：15.6英寸 / 16寸 / 14英寸
+  const size = text.match(/(\d{2}(?:\.\d)?)\s*(?:英寸|寸)/);
+  if (size) {
+    const v = Number(size[1]);
+    if (v >= 10 && v <= 20) patch.screenSizeMin = v;
+  }
+
+  // 刷新率：120Hz / 144hz / 165赫兹
+  const hz = text.match(/(\d{2,3})\s*(?:hz|赫兹)/i);
+  if (hz) {
+    const v = Number(hz[1]);
+    if (v >= 60 && v <= 360) patch.refreshMin = v;
+  }
+
+  return patch;
+}

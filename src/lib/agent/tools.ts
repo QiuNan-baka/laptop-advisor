@@ -244,7 +244,7 @@ export const TOOLS = [
     function: {
       name: "update_constraints",
       description:
-        "把用户追问里明确提出的条件变更整理成结构化增量，供前端把「我理解的条件」同步到匹配结果并重新筛选。只在用户明确说「预算改成/提到 X」「加个独显」「重量不超过 X」「不要独显了/去掉重量限制」这类指令时调用；纯咨询、纯对比、纯聊缺点时不要调用。set 里只放用户这次真正改动的键，没提到的键一律不写；要撤销某个条件就放 clear 数组。绝不能改动用户没提的条件。",
+        "把用户追问里提出的条件变更整理成结构化增量，供前端把「我理解的条件」同步到匹配结果并重新筛选。判定标准是「用户是否给了一个和当前条件不同的新数值/新要求」，不是「有没有用祈使句」——陈述句也算，比如「预算9000之内」「9000以内」「预算最多九千」「要32G内存」「轻一点两公斤以内」都是在定新边界，必须调用本工具；祈使句如「预算改成/提到 X」「加个独显」「重量不超过 X」「不要独显了/去掉重量限制」同样。纯咨询、纯对比、纯聊缺点时不要调用。set 里只放用户这次真正改动的键，没提到的键一律不写；要撤销某个条件就放 clear 数组。绝不能改动用户没提的条件。",
       parameters: {
         type: "object",
         properties: {
@@ -300,7 +300,7 @@ export function describeCall(name: string, rawArgs: string): string {
   }
 }
 
-function describeConstraints(c: Constraints): string[] {
+export function describeConstraints(c: Constraints): string[] {
   const out: string[] = [];
   for (const key of Object.keys(CONSTRAINT_LABELS) as (keyof Constraints)[]) {
     const v = c[key];

@@ -62,6 +62,23 @@ export default function AgentChat({
   const abortRef = useRef<AbortController | null>(null);
   const answerBoxRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * 「正在跑」的同步闸门。
+   *
+   * 【为什么不能只用 running 这个 state】
+   * state 是异步更新的：连按两次回车时，第二次调用读到的还是 running=false，
+   * 于是两个流并发跑，各自从 s1 数起，步骤 id 撞车 →
+   * React 报 "two children with the same key"。用 ref 是同步写入的，
+   * 第二次点击在第一行就被挡住。
+   */
+  const runningRef = useRef(false);
+
+  /**
+   * 步骤 id 的自增计数器，**跨所有轮次单调递增、永不重置**。
+   * 就算将来还是出现了并发/重放，id 也不可能重复。
+   */
+  const stepIdRef = useRef(0);
+
   // 回答一边长一边滚到底，像真的在"说话"
   useEffect(() => {
     const el = answerBoxRef.current;
@@ -75,7 +92,9 @@ export default function AgentChat({
 
   const ask = useCallback(async () => {
     const q = question.trim();
-    if (!q || running) return;
+    if (!q || runningRef.current) return;
+
+    runningRef.current = true;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -92,8 +111,6 @@ export default function AgentChat({
     setPatchSummary("");
     setPatchApplied(false);
     setStage("正在连接…");
-
-    let stepSeq = 0;
 
     try {
       await streamAgent(
@@ -113,10 +130,10 @@ export default function AgentChat({
               break;
             case "tool_call":
               setStage("");
-              stepSeq += 1;
+              stepIdRef.current += 1;
               setSteps((prev) => [
                 ...prev,
-                { id: `s${stepSeq}`, name: event.name, label: event.label },
+                { id: `s${stepIdRef.current}`, name: event.name, label: event.label },
               ]);
               break;
             case "tool_result":
@@ -158,19 +175,22 @@ export default function AgentChat({
         setError(err instanceof Error ? err.message : "请求失败");
       }
     } finally {
+      runningRef.current = false;
       setRunning(false);
       setStage("");
     }
-  }, [question, running, seedContext, userKey]);
+  }, [question, seedContext, userKey]);
 
   function stop() {
     abortRef.current?.abort();
+    runningRef.current = false;
     setRunning(false);
     setStage("");
   }
 
   function clear() {
     abortRef.current?.abort();
+    runningRef.current = false;
     setAnswer("");
     setSteps([]);
     setNarration([]);

@@ -86,15 +86,19 @@ export default function Home() {
   const seedContext = useMemo(() => {
     if (!submitted) return undefined;
     const parts: string[] = [];
+    if (constraints.budgetMin) parts.push(`预算下限 ${constraints.budgetMin} 元`);
     if (constraints.budgetMax) parts.push(`预算上限 ${constraints.budgetMax} 元`);
     if (constraints.weightMax) parts.push(`重量不超过 ${constraints.weightMax}kg`);
     if (constraints.screenSizeMin) parts.push(`屏幕至少 ${constraints.screenSizeMin} 英寸`);
+    if (constraints.screenSizeMax) parts.push(`屏幕不超过 ${constraints.screenSizeMax} 英寸`);
     if (constraints.ppiMin) parts.push(`像素密度不低于 ${constraints.ppiMin}ppi`);
     if (constraints.ramMin) parts.push(`内存至少 ${constraints.ramMin}GB`);
     if (constraints.storageMin) parts.push(`硬盘至少 ${constraints.storageMin}GB`);
     if (constraints.batteryMin) parts.push(`电池至少 ${constraints.batteryMin}Wh`);
     if (constraints.refreshMin) parts.push(`刷新率至少 ${constraints.refreshMin}Hz`);
     if (constraints.requireDiscreteGpu) parts.push("需要独显");
+    if (constraints.preferEfficient) parts.push("优先高能效芯片（续航久）");
+    if (constraints.preferStrongIGpu) parts.push("轻度游戏，优先强核显");
     if (constraints.usages?.length) parts.push(`用途 ${constraints.usages.join("/")}`);
 
     const names = [...outcome.overBudget, ...outcome.results]
