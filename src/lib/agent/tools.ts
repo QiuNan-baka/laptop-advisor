@@ -42,6 +42,21 @@ export interface ToolResult {
   citations?: Citation[];
   /** 给界面「思考过程」面板显示的一句话摘要 */
   summary: string;
+  /**
+   * 这次调用产生的约束变更（只有 update_constraints 会带）。
+   * 不回传给模型——它是给前端「是否同步至匹配结果」确认区用的。
+   */
+  constraintPatch?: ConstraintPatch;
+}
+
+/**
+ * 约束增量变更。set=要新增/修改的条件，clear=要删除的条件键。
+ * 用增量而不是「整包替换」，是因为用户追问「预算提到 7000」时，
+ * 模型只该改预算这一项，不该碰用户已经定好的重量、用途。
+ */
+export interface ConstraintPatch {
+  set?: Constraints;
+  clear?: (keyof Constraints)[];
 }
 
 // ---------- 参数 Schema ----------
@@ -85,6 +100,35 @@ const ReviewArgs = z.object({
 });
 
 const DiagnoseArgs = FilterArgs;
+
+/**
+ * update_constraints 的参数：一份「增量变更」。
+ * set = 要新增或修改的条件（全过 BOUNDS 校验）；clear = 要删除的条件键。
+ * 两者都可不填，但至少得给一个，否则这次调用没有意义。
+ */
+const ConstraintPatchArgs = z.object({
+  set: FilterArgs.optional(),
+  clear: z
+    .array(
+      z.enum([
+        "budgetMin",
+        "budgetMax",
+        "weightMax",
+        "screenSizeMin",
+        "screenSizeMax",
+        "ppiMin",
+        "refreshMin",
+        "ramMin",
+        "storageMin",
+        "batteryMin",
+        "requireDiscreteGpu",
+        "preferEfficient",
+        "preferStrongIGpu",
+        "usages",
+      ])
+    )
+    .optional(),
+});
 
 // ---------- 工具声明（喂给模型的 JSON Schema） ----------
 
@@ -195,6 +239,31 @@ export const TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_constraints",
+      description:
+        "把用户追问里明确提出的条件变更整理成结构化增量，供前端把「我理解的条件」同步到匹配结果并重新筛选。只在用户明确说「预算改成/提到 X」「加个独显」「重量不超过 X」「不要独显了/去掉重量限制」这类指令时调用；纯咨询、纯对比、纯聊缺点时不要调用。set 里只放用户这次真正改动的键，没提到的键一律不写；要撤销某个条件就放 clear 数组。绝不能改动用户没提的条件。",
+      parameters: {
+        type: "object",
+        properties: {
+          set: {
+            type: "object",
+            description: "要新增或修改的条件，键与 filter_laptops 相同（budgetMax/weightMax/screenSizeMin/ppiMin/refreshMin/ramMin/storageMin/batteryMin/preferEfficient/preferStrongIGpu/requireDiscreteGpu/usages）",
+          },
+          clear: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: ["budgetMin", "budgetMax", "weightMax", "screenSizeMin", "screenSizeMax", "ppiMin", "refreshMin", "ramMin", "storageMin", "batteryMin", "requireDiscreteGpu", "preferEfficient", "preferStrongIGpu", "usages"],
+            },
+            description: "要删除的条件键（用户明确说不要/去掉某条限制时用）",
+          },
+        },
+      },
+    },
+  },
 ];
 
 // ---------- 描述工具执行过程的人话（给界面思考条用） ----------
@@ -216,6 +285,16 @@ export function describeCall(name: string, rawArgs: string): string {
       return `检索评测资料：${(a as { query?: string }).query ?? ""}`;
     case "diagnose_shortage":
       return "诊断是哪条条件把结果卡死了";
+    case "update_constraints": {
+      const patch = a as ConstraintPatch;
+      const set = describeConstraints((patch.set ?? {}) as Constraints);
+      const clr = (patch.clear ?? []).map((k) => CONSTRAINT_LABELS[k]);
+      const parts = [
+        set.length ? `调整 ${set.join("、")}` : "",
+        clr.length ? `去掉 ${clr.join("、")}` : "",
+      ].filter(Boolean);
+      return parts.length ? parts.join("；") : "更新筛选条件";
+    }
     default:
       return `调用 ${name}`;
   }
@@ -311,6 +390,8 @@ export function executeTool(name: string, rawArgs: string): ToolResult {
       return runReview(args);
     case "diagnose_shortage":
       return runDiagnose(args);
+    case "update_constraints":
+      return runUpdateConstraints(args);
     default:
       return {
         content: `没有名为「${name}」的工具。可用工具：filter_laptops / get_laptop_detail / compare_laptops / search_reviews / diagnose_shortage。`,
@@ -593,5 +674,61 @@ function runDiagnose(args: unknown): ToolResult {
       `逐条、两两移除约束都无法筛出机型（移除预算后剩 ${noBudget} 台），说明这些条件组合的交集本身不存在。` +
       `请如实告诉用户参数库覆盖有限，并指出哪几条是互相冲突的硬条件。绝对不要编造机型。`,
     summary: "多条件互相冲突，无可行调整",
+  };
+}
+
+// ---------- 约束同步工具 ----------
+
+/**
+ * 把模型整理的「条件变更」交出去。
+ *
+ * 这个工具不查参数库、不产生机型数据，它只做一件事：把用户追问里的
+ * 条件变更（预算改了/加了独显/去掉重量限制…）规规矩矩地打包成
+ * ConstraintPatch，交给前端那个「是否同步至匹配结果」按钮。
+ *
+ * 关键设计：这里只「打包」，不「应用」。真正改 constraints、触发重新筛选
+ * 的，是用户点了按钮之后在 page.tsx 里做的。为什么不让模型直接改？
+ * 因为匹配结果区是「规则引擎」的地盘，AI 只能提议、不能越权覆盖
+ * 用户已经定好的条件——这守住了「AI 安全可控」里"AI 不直接改用户数据"的底线。
+ */
+function runUpdateConstraints(args: unknown): ToolResult {
+  const parsed = ConstraintPatchArgs.safeParse(args);
+  if (!parsed.success) {
+    return {
+      content: `参数不合法，已拒绝执行：${parsed.error.issues
+        .map((i) => `${i.path.join(".")} ${i.message}`)
+        .join("；")}`,
+      summary: "条件同步参数不合法",
+    };
+  }
+
+  const { set, clear } = parsed.data;
+  const hasSet = set && Object.keys(set).length > 0;
+  const hasClear = clear && clear.length > 0;
+
+  if (!hasSet && !hasClear) {
+    return {
+      content: "你没有提供任何条件变更（set 和 clear 都是空的）。如果用户没有明确要求改条件，就不要调用本工具。",
+      summary: "无有效条件变更",
+    };
+  }
+
+  const patch: ConstraintPatch = {
+    ...(hasSet ? { set: set as Constraints } : {}),
+    ...(hasClear ? { clear } : {}),
+  };
+
+  const setDesc = hasSet ? describeConstraints(set as Constraints).join("、") : "";
+  const clearDesc = hasClear ? (clear as (keyof Constraints)[]).map((k) => CONSTRAINT_LABELS[k]).join("、") : "";
+
+  return {
+    content:
+      `已整理出条件变更：\n` +
+      `${setDesc ? `- 新增/修改：${setDesc}\n` : ""}` +
+      `${clearDesc ? `- 删除：${clearDesc}\n` : ""}` +
+      `\n请在回答里用一句话说明「我把你的条件理解成了这样，需要你确认后同步到匹配结果」，` +
+      `然后停在这里，等用户确认。不要继续调用其他工具，也不要在用户确认前擅自改条件。`,
+    summary: [setDesc && `调整 ${setDesc}`, clearDesc && `去掉 ${clearDesc}`].filter(Boolean).join("；") || "更新筛选条件",
+    constraintPatch: patch,
   };
 }

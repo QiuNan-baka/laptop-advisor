@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentEvent } from "@/lib/agent/agent";
 import type { Citation } from "@/lib/agent/rag";
+import type { ConstraintPatch } from "@/lib/agent/tools";
 import { streamAgent } from "@/lib/agent/agent-client";
 
 interface Step {
@@ -34,9 +35,16 @@ interface AgentChatProps {
   userKey?: string;
   /** 后端有没有配模型；没配就只显示提示，不发请求 */
   available: boolean;
+  /** 用户点「同步至匹配结果」后，把条件变更交给页面去合并并重新筛选 */
+  onApplyConstraints?: (patch: ConstraintPatch) => void;
 }
 
-export default function AgentChat({ seedContext, userKey, available }: AgentChatProps) {
+export default function AgentChat({
+  seedContext,
+  userKey,
+  available,
+  onApplyConstraints,
+}: AgentChatProps) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -47,6 +55,9 @@ export default function AgentChat({ seedContext, userKey, available }: AgentChat
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ steps: number; elapsedMs: number } | null>(null);
+  const [patch, setPatch] = useState<ConstraintPatch | null>(null);
+  const [patchSummary, setPatchSummary] = useState<string>("");
+  const [patchApplied, setPatchApplied] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const answerBoxRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +88,9 @@ export default function AgentChat({ seedContext, userKey, available }: AgentChat
     setNarration([]);
     setCitations([]);
     setMeta(null);
+    setPatch(null);
+    setPatchSummary("");
+    setPatchApplied(false);
     setStage("正在连接…");
 
     let stepSeq = 0;
@@ -120,6 +134,11 @@ export default function AgentChat({ seedContext, userKey, available }: AgentChat
             case "citations":
               setCitations(event.items);
               break;
+            case "constraint_patch":
+              setPatch(event.patch);
+              setPatchSummary(event.summary);
+              setPatchApplied(false);
+              break;
             case "done":
               setMeta({ steps: event.steps, elapsedMs: event.elapsedMs });
               setStage("");
@@ -160,6 +179,15 @@ export default function AgentChat({ seedContext, userKey, available }: AgentChat
     setMeta(null);
     setStage("");
     setRunning(false);
+    setPatch(null);
+    setPatchSummary("");
+    setPatchApplied(false);
+  }
+
+  function applyPatch() {
+    if (!patch) return;
+    onApplyConstraints?.(patch);
+    setPatchApplied(true);
   }
 
   const hasOutput = answer.length > 0 || steps.length > 0 || error !== null;
@@ -289,6 +317,39 @@ export default function AgentChat({ seedContext, userKey, available }: AgentChat
                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-violet-400 align-middle" />
               )}
             </div>
+          )}
+
+          {/* 条件同步确认区：模型提议改条件，用户拍板才生效 */}
+          {patch && !patchApplied && (
+            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2.5">
+              <p className="mb-1.5 text-[11px] font-medium tracking-wide text-sky-700">
+                AI 建议更新筛选条件
+              </p>
+              {patchSummary && (
+                <p className="mb-2 text-xs text-sky-800">{patchSummary}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={applyPatch}
+                  className="rounded-xl bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-700"
+                >
+                  同步至匹配结果
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPatchApplied(true)}
+                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-500 transition hover:bg-slate-50"
+                >
+                  忽略
+                </button>
+              </div>
+            </div>
+          )}
+          {patchApplied && (
+            <p className="mt-2 text-[11px] text-sky-600">
+              ✓ 已处理条件同步{onApplyConstraints && patch ? "（匹配结果已重新筛选）" : ""}
+            </p>
           )}
 
           {/* 引用来源：能点回原文 */}

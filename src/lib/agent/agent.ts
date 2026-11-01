@@ -23,6 +23,7 @@
 
 import type { ProviderConfig } from "@/lib/ai/provider";
 import { describeCall, executeTool, safeJson, TOOLS } from "./tools";
+import type { ConstraintPatch } from "./tools";
 import type { Citation } from "./rag";
 
 /** 最多几轮工具调用。超了必须收尾，不许无限查下去。 */
@@ -52,6 +53,12 @@ export type AgentEvent =
   | { type: "narration"; text: string; chars: number }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
+  /**
+   * 模型通过 update_constraints 工具整理出的条件变更。
+   * 前端收到后渲染「是否同步至匹配结果」确认区，等用户点按钮才真正应用。
+   * 只是提议，不是指令——AI 不能越权改用户已定的条件。
+   */
+  | { type: "constraint_patch"; patch: ConstraintPatch; summary: string }
   | { type: "done"; steps: number; elapsedMs: number }
   | { type: "error"; message: string; recoverable: boolean };
 
@@ -68,6 +75,7 @@ const AGENT_SYSTEM_PROMPT = `你是一台笔记本选购顾问。你不是在"�
 4. 用户问"这台有什么缺点/散热怎么样/同价位别的怎么样"，调用 search_reviews 检索评测资料，回答时说明依据来自哪条资料。
 5. 用户问"这两台差在哪"，调用 compare_laptops。
 6. 需要某台机器的完整参数，调用 get_laptop_detail。
+7. 用户明确要改筛选条件（"预算提到 7000""加个独显""重量不超过 1.5kg""不要独显了""去掉重量限制"），调用 update_constraints 把变更打包，然后停下来等用户确认同步。纯咨询、纯对比、聊缺点时不要调用它。
 
 【铁律，违反即失败】
 - 只提参数库里真实存在的机型。参数库里没有的，就说"我的参数库里没有这台"，不要编。
@@ -306,6 +314,15 @@ export async function runAgent({ question, provider, emit, seedContext }: RunAge
           summary: result.summary,
           citations: result.citations,
         });
+
+        // 条件变更：单独发一条事件给前端，触发「是否同步」确认区
+        if (result.constraintPatch) {
+          emit({
+            type: "constraint_patch",
+            patch: result.constraintPatch,
+            summary: result.summary,
+          });
+        }
 
         messages.push({
           role: "tool",

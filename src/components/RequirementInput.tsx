@@ -72,7 +72,7 @@ export default function RequirementInput({
               className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
             />
           )}
-          {loading ? "正在翻译…" : "翻译成条件"}
+          {loading ? "正在分析…" : "翻译成条件"}
         </button>
         <button
           type="button"

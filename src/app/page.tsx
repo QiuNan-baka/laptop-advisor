@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AgentChat from "@/components/AgentChat";
+import AnalysisStage from "@/components/AnalysisStage";
 import ConstraintPanel from "@/components/ConstraintPanel";
 import GuideList from "@/components/GuideList";
 import ResultByCategory from "@/components/ResultByCategory";
@@ -21,6 +22,7 @@ import {
   guideNearBudget,
 } from "@/lib/guide";
 import { match } from "@/lib/match";
+import type { ConstraintPatch } from "@/lib/agent/tools";
 
 const EXAMPLES = [
   "预算 6000 以内，主要写代码，屏幕要看得清，最好轻一点",
@@ -45,6 +47,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // 每次发新请求自增，作为 AnalysisStage 的 key 强制重新挂载，进度条从第 1 步重来
+  const [parseSeq, setParseSeq] = useState(0);
 
   /** 上一次请求的取消器：用户连点示例时，旧请求立刻作废 */
   const inFlight = useRef<AbortController | null>(null);
@@ -116,6 +120,7 @@ export default function Home() {
 
       setLoading(true);
       setError(null);
+      setParseSeq((n) => n + 1);
 
       const res = await requestParse(input, {
         userKey,
@@ -152,6 +157,35 @@ export default function Home() {
     });
   }
 
+  /**
+   * 用户点了「同步至匹配结果」：把 Agent 提议的条件变更合并进当前约束。
+   *
+   * 合并规则（守底线）：
+   * - set 里的键覆盖/新增；clear 里的键删除。
+   * - 这里只做「机械合并」，不额外判断语义。真正的语义把关在 update_constraints
+   *   工具那一层：它被 prompt 约束为「只在用户明确说改条件时才调用、只改用户
+   *   提到的键」。所以到这里时，patch 已经是用户拍过板要改的内容。
+   * - 触发重新筛选：条件一变，outcome 由 useMemo([constraints]) 自动重算，
+   *   这里 setSubmitted(true) 只是确保结果区/名录区继续渲染。
+   */
+  const applyConstraints = useCallback((patch: ConstraintPatch) => {
+    setConstraints((prev) => {
+      const next: Constraints = { ...prev };
+      if (patch.clear) {
+        for (const k of patch.clear) delete next[k];
+      }
+      if (patch.set) {
+        for (const [k, v] of Object.entries(patch.set)) {
+          if (v !== undefined) {
+            (next as Record<string, unknown>)[k] = v;
+          }
+        }
+      }
+      return next;
+    });
+    setSubmitted(true);
+  }, []);
+
   function reset() {
     inFlight.current?.abort();
     inFlight.current = null;
@@ -187,6 +221,13 @@ export default function Home() {
           seedContext={seedContext}
           userKey={userKey}
           available={!demoMode}
+          onApplyConstraints={applyConstraints}
+        />
+
+        <AnalysisStage
+          key={parseSeq}
+          active={loading}
+          elapsedMs={result?.elapsedMs}
         />
 
         {result && (
