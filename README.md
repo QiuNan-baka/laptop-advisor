@@ -35,23 +35,38 @@ src/
 ├── app/
 │   ├── page.tsx             页面编排层：只负责状态与组件顺序
 │   ├── layout.tsx           全局布局与元信息
-│   └── api/parse/route.ts   后端路由：人话 → 约束（Key 只活在这里）
+│   ├── api/parse/route.ts   后端路由：人话 → 约束（Key 只活在这里）
+│   └── api/agent/route.ts   后端路由：追问 AI（SSE 流式 + 六工具循环）
 ├── components/
 │   ├── SiteHeader.tsx       页头
-│   ├── RequirementInput.tsx 输入区 + 示例说法
+│   ├── RequirementInput.tsx 输入区 + 示例说法 + 语音输入
+│   ├── AnalysisStage.tsx    分析过程深度思考动画（可折叠）
 │   ├── TranslationStatus.tsx 翻译状态条（谁翻的 / 模型 / 耗时 / 把握度）
 │   ├── ConstraintPanel.tsx  约束胶囊（可逐条删除）+ 翻译依据
 │   ├── RelaxNotice.tsx      空结果自动放宽提示
-│   ├── LaptopCard.tsx       机型卡片
+│   ├── ResultByCategory.tsx 匹配结果三分栏（游戏本 / 全能本 / 轻薄本）
+│   ├── LaptopCard.tsx       机型卡片（含语音朗读）
 │   ├── GuideList.tsx        同价位推荐名录（可折叠）
+│   ├── AgentChat.tsx        追问 AI 对话区（流式 / 查证过程 / 引用 / 条件同步）
+│   ├── SpeakButton.tsx      语音朗读按钮
+│   ├── VoiceInputButton.tsx 语音输入按钮
 │   └── SiteFooter.tsx       页脚
+├── hooks/
+│   └── useSpeechRecognition.ts 语音识别（Web Speech API）
 ├── data/
-│   ├── laptops.ts           实测参数库（13 台，含 ppi / 重量 / 续航等确定参数）
+│   ├── laptops.ts           机型池（= catalogSpecs，81 台带参数机）
+│   ├── catalog-specs.ts     81 台带参数机型库（笔吧双11指南）
 │   ├── guide-catalog.ts     推荐名录（81 台，价位段 + 定位 + 真实优缺点）
 │   └── dictionary.ts        需求词典（15 条：人话 → 参数门槛 + 翻译依据）
 └── lib/
     ├── match.ts             规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
+    ├── cpu.ts               CPU 厂商名识别 + 能效比分级（efficiencyTier）
     ├── guide.ts             名录查询：价位段归段 / 定位映射 / 邻近取档
+    ├── speech.ts            语音合成（Web Speech API）
+    ├── agent/
+    │   ├── agent.ts         Agent 主循环：SSE 流式 + 六工具 + 条件同步
+    │   ├── tools.ts         六个工具（筛选/详情/比价/检索/诊断/改条件）
+    │   └── rag.ts           RAG 混合检索：bigram + BM25 + 同义词 + 引用
     └── ai/
         ├── provider.ts      供应商适配：6 家预置 + 任意 OpenAI 兼容端点
         ├── prompt.ts        Prompt A：字段语义 + 反例 + 强制 JSON
@@ -65,11 +80,11 @@ src/
 
 ### 两层数据为什么分开
 
-| | 实测参数库 `laptops.ts` | 推荐名录 `guide-catalog.ts` |
+| | 实测参数库 `catalog-specs.ts` | 推荐名录 `guide-catalog.ts` |
 |---|---|---|
 | 内容 | 确切屏幕 / CPU / 内存 / 硬盘 / 重量 / 电池 | 价位段 + 定位 + 真实优缺点 |
 | 用途 | 参与数值硬筛选 | 同价位参考、推荐语来源 |
-| 条数 | 13 台 | 81 台 |
+| 条数 | 81 台 | 81 台 |
 
 名录里绝大多数机器查不到确切屏幕亮度、实测重量，硬塞进参数库就只能编数字。宁可少一层，也不给用户看假数据。
 
@@ -160,18 +175,21 @@ npm run dev
 ## 五、开发进度
 
 - [x] 项目骨架（Next.js 16 + React 19 + TypeScript + Tailwind v4）
-- [x] 实测参数库 13 台真实参数
+- [x] 实测参数库 81 台真实参数（笔吧双11选购指南，含国补价 / 内存类型速率 / 能效比）
 - [x] **推荐名录 81 台（价位段 + 定位 + 真实优缺点，来自双11选购指南）**
 - [x] 需求词典 15 条（含翻译依据）
-- [x] 规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽
-- [x] 主界面组件化（8 个组件 + 197 行编排层）
+- [x] 规则引擎：解析 / 匹配 / 排序 / 空结果自动放宽 + 冲突调和
+- [x] 主界面组件化（12 个组件 + 编排层）
 - [x] **AI 接入：`/api/parse` 路由 + Prompt A + Zod 校验 + 失败重试**
 - [x] **可替换供应商：6 家预置 + 任意 OpenAI 兼容端点**
 - [x] **三层降级：内置 Key → 访客自带 Key → 本地词典兜底**
 - [x] **界面接上 AI：加载态 / 状态条 / 错误提示 / 连点取消 / 访客自带 Key**
-- [ ] 流式输出与思考状态可视化
-- [ ] Agent 工具调用循环（多轮追问 / 比价 / 详情查询）
-- [ ] RAG 混合检索（解释带参数引用）
+- [x] **流式输出与思考状态可视化（SSE 流式 + 深度思考动画）**
+- [x] **Agent 工具调用循环（多轮追问 / 比价 / 详情查询 / 条件同步）**
+- [x] **RAG 混合检索（bigram + BM25 + 同义词扩展，解释带参数引用）**
+- [x] **续航能效比分级排序（efficiencyTier 四档，能效优先于大电池）**
+- [x] **多模态语音交互（Web Speech API 语音输入 + 语音朗读）**
+- [x] **匹配结果按 游戏本 / 全能本 / 轻薄本 三分栏**
 
 ## 六、团队信息
 
