@@ -22,6 +22,7 @@ import type { AgentEvent } from "@/lib/agent/agent";
 import type { Citation } from "@/lib/agent/rag";
 import type { ConstraintPatch } from "@/lib/agent/tools";
 import { streamAgent } from "@/lib/agent/agent-client";
+import SpeakButton from "@/components/SpeakButton";
 
 interface Step {
   id: string;
@@ -328,14 +329,21 @@ export default function AgentChat({
 
           {/* 回答正文：流式长出来 */}
           {(answer || running) && (
-            <div
-              ref={answerBoxRef}
-              className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700"
-            >
-              {answer || <span className="text-slate-400">正在组织回答…</span>}
-              {running && answer && (
-                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-violet-400 align-middle" />
+            <div className="mt-3">
+              {answer && !running && (
+                <div className="mb-1.5 flex justify-end">
+                  <SpeakButton text={answer} label="朗读回答" />
+                </div>
               )}
+              <div
+                ref={answerBoxRef}
+                className="max-h-80 overflow-y-auto rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700"
+              >
+                {answer || <span className="text-slate-400">正在组织回答…</span>}
+                {running && answer && (
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-violet-400 align-middle" />
+                )}
+              </div>
             </div>
           )}
 

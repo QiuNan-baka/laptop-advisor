@@ -2,6 +2,7 @@
 
 import type { MatchResult } from "@/lib/match";
 import { formatRam } from "@/data/laptops";
+import SpeakButton from "@/components/SpeakButton";
 
 function Spec({ label, value }: { label: string; value: string }) {
   return (
@@ -43,7 +44,10 @@ export default function LaptopCard({ result }: LaptopCardProps) {
         </div>
       </div>
 
-      <p className="mt-1 text-xs text-slate-400">{reason}</p>
+      <p className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+        <span>{reason}</span>
+        <SpeakButton text={reason} label="朗读" />
+      </p>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-3">
         <Spec

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import VoiceInputButton from "@/components/VoiceInputButton";
 
 interface RequirementInputProps {
   text: string;
@@ -81,6 +82,7 @@ export default function RequirementInput({
         >
           重来
         </button>
+        <VoiceInputButton onTranscript={onTextChange} disabled={loading} />
         <span className="text-xs text-slate-400">
           也可以按 Ctrl + Enter 提交
         </span>
