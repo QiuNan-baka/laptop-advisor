@@ -103,11 +103,11 @@
 
 /*
  * 黑夜模式：<html> 加 .dark 类触发。
- * 放在 @layer base 里，保证规则一定会被编译进产物。
- * 这里重新定义颜色变量，让整站 bg-*/text-*/border-* 全部自动切到暗色。
+ * 不能放在 @layer base 里：layer 的优先级低于未分层的 :root，
+ * 会把 --background/--foreground 的暗色覆盖压住，导致背景切不过去。
+ * 这里重新定义颜色变量，让整站 bg-* / text-* / border-* 全部自动切到暗色。
  */
-@layer base {
-  .dark {
+.dark {
     color-scheme: dark;
 
     --background: #12100c;
@@ -191,7 +191,6 @@
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6),
       0 8px 10px -6px rgba(0, 0, 0, 0.5);
     --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  }
 }
 
 body {
