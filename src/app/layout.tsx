@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { FavoritesProvider } from "@/context/FavoritesContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "说人话，选笔记本",
+  title: "按你所想，如你所愿——产品AI的智能检索",
   description:
     "把「看得清」「轻一点」「打游戏」这类模糊说法，翻译成可以被参数验证的条件，并把翻译依据摊开给你看。",
 };
@@ -40,7 +41,9 @@ const themeInitScript = `
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <FavoritesProvider>{children}</FavoritesProvider>
+      </body>
     </html>
   );
 }

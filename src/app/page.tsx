@@ -9,6 +9,7 @@ import GuideList from "@/components/GuideList";
 import ResultByCategory from "@/components/ResultByCategory";
 import RelaxNotice from "@/components/RelaxNotice";
 import RequirementInput from "@/components/RequirementInput";
+import FavoritesPanel from "@/components/FavoritesPanel";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import TranslationStatus from "@/components/TranslationStatus";
@@ -50,6 +51,8 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   // 每次发新请求自增，作为 AnalysisStage 的 key 强制重新挂载，进度条从第 1 步重来
   const [parseSeq, setParseSeq] = useState(0);
+  // 是否打开「我的收藏」二级界面
+  const [showFavorites, setShowFavorites] = useState(false);
 
   /** 上一次请求的取消器：用户连点示例时，旧请求立刻作废 */
   const inFlight = useRef<AbortController | null>(null);
@@ -208,7 +211,7 @@ export default function Home() {
   return (
     <div className="min-h-full text-slate-900">
       <main className="mx-auto w-full max-w-4xl px-5 py-12">
-        <SiteHeader />
+        <SiteHeader onOpenFavorites={() => setShowFavorites(true)} />
 
         <RequirementInput
           text={text}
@@ -282,6 +285,10 @@ export default function Home() {
           guideCount={guideCatalog.length}
         />
       </main>
+
+      {showFavorites && (
+        <FavoritesPanel onClose={() => setShowFavorites(false)} />
+      )}
     </div>
   );
 }
