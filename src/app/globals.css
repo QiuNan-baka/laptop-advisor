@@ -2,7 +2,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #272015;
 }
 
 @theme inline {
@@ -12,15 +12,193 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * 暖色轻奢主题：通过覆盖 Tailwind 默认色名，把整站冷灰白映射为暖米色系。
+ * 组件代码无需改动，配色自动统一。
+ */
+@theme {
+  /* —— 中性色：slate → 暖米灰（背景/边框/文字） —— */
+  --color-slate-50: #faf7f1;
+  --color-slate-100: #f4eee3;
+  --color-slate-200: #e9dfcc;
+  --color-slate-300: #d6c5a7;
+  --color-slate-400: #b3a084;
+  --color-slate-500: #938265;
+  --color-slate-600: #76684f;
+  --color-slate-700: #584d3a;
+  --color-slate-800: #3c3426;
+  --color-slate-900: #272015;
+  --color-slate-950: #1a150d;
+
+  /* —— 强调色：violet → 金铜 brass（AI 追问、主强调） —— */
+  --color-violet-50: #fbf4e6;
+  --color-violet-100: #f5e8cc;
+  --color-violet-200: #e9d5a5;
+  --color-violet-300: #d9bc7a;
+  --color-violet-400: #c6a059;
+  --color-violet-500: #ad8743;
+  --color-violet-600: #8f6d35;
+  --color-violet-700: #715529;
+  --color-violet-800: #594322;
+  --color-violet-900: #45341b;
+
+  /* —— 强调色：sky → 蜂蜜金 honey（同步建议、朗读中） —— */
+  --color-sky-50: #fdf7e8;
+  --color-sky-100: #f8edd0;
+  --color-sky-200: #f0dca8;
+  --color-sky-300: #e5c37d;
+  --color-sky-400: #d5a854;
+  --color-sky-500: #c18f39;
+  --color-sky-600: #a2742c;
+  --color-sky-700: #815a22;
+  --color-sky-800: #66471c;
+  --color-sky-900: #4f3717;
+
+  /* —— 强调色：emerald → 橄榄绿 moss（优点、成功、引用） —— */
+  --color-emerald-50: #f2f4ec;
+  --color-emerald-100: #e5e9d6;
+  --color-emerald-200: #ccd5b2;
+  --color-emerald-300: #adba88;
+  --color-emerald-400: #8fa168;
+  --color-emerald-500: #75864f;
+  --color-emerald-600: #5d6c3e;
+  --color-emerald-700: #495632;
+  --color-emerald-800: #394328;
+  --color-emerald-900: #2b321f;
+
+  /* —— 强调色：rose → 暖砖红 clay（错误、短板） —— */
+  --color-rose-50: #faefe9;
+  --color-rose-100: #f3dcd0;
+  --color-rose-200: #e6bfac;
+  --color-rose-300: #d49c83;
+  --color-rose-400: #c27c5e;
+  --color-rose-500: #ad6448;
+  --color-rose-600: #8f5038;
+  --color-rose-700: #71402d;
+  --color-rose-800: #583224;
+  --color-rose-900: #42261c;
+
+  /* —— 强调色：amber → 蜂蜜琥珀（注意、提示） —— */
+  --color-amber-50: #fdf5e3;
+  --color-amber-100: #f9ecc6;
+  --color-amber-200: #f2dda0;
+  --color-amber-300: #e9c878;
+  --color-amber-400: #ddb053;
+  --color-amber-500: #c99738;
+  --color-amber-600: #a87b2c;
+  --color-amber-700: #856022;
+  --color-amber-800: #684b1b;
+  --color-amber-900: #503915;
+
+  /* —— 阴影：改为暖色调，更柔和 —— */
+  --shadow-sm: 0 1px 2px 0 rgba(60, 52, 38, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(60, 52, 38, 0.07),
+    0 2px 4px -2px rgba(60, 52, 38, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(60, 52, 38, 0.08),
+    0 4px 6px -4px rgba(60, 52, 38, 0.06);
+  --shadow-xl: 0 20px 25px -5px rgba(60, 52, 38, 0.16),
+    0 8px 10px -6px rgba(60, 52, 38, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(60, 52, 38, 0.28);
+}
+
+/*
+ * 黑夜模式：<html> 加 .dark 类触发。
+ * 放在 @layer base 里，保证规则一定会被编译进产物。
+ * 这里重新定义颜色变量，让整站 bg-*/text-*/border-* 全部自动切到暗色。
+ */
+@layer base {
+  .dark {
+    color-scheme: dark;
+
+    --background: #12100c;
+    --foreground: #f6f0e5;
+
+    --color-slate-50: #262019;
+    --color-slate-100: #2d2620;
+    --color-slate-200: #3a3127;
+    --color-slate-300: #4b4032;
+    --color-slate-400: #8d7f68;
+    --color-slate-500: #a89980;
+    --color-slate-600: #c3b69c;
+    --color-slate-700: #d9ceb7;
+    --color-slate-800: #eae1d1;
+    --color-slate-900: #f6f0e5;
+    --color-slate-950: #fbf8f0;
+
+    /* 卡片底色：原本 bg-white 的卡片在暗色下变暗 */
+    --color-white: #1c1813;
+
+    --color-violet-50: #2a2312;
+    --color-violet-100: #352c18;
+    --color-violet-200: #4a3d1f;
+    --color-violet-300: #6b5728;
+    --color-violet-400: #927632;
+    --color-violet-500: #b8963f;
+    --color-violet-600: #d3b155;
+    --color-violet-700: #dfc37a;
+    --color-violet-800: #ead7a6;
+    --color-violet-900: #f5e9ca;
+
+    --color-sky-50: #2c2411;
+    --color-sky-100: #382d17;
+    --color-sky-200: #4d3d1d;
+    --color-sky-300: #705528;
+    --color-sky-400: #977331;
+    --color-sky-500: #bd933c;
+    --color-sky-600: #d8b253;
+    --color-sky-700: #e3c57a;
+    --color-sky-800: #eed9a5;
+    --color-sky-900: #f7ebca;
+
+    --color-emerald-50: #1f2418;
+    --color-emerald-100: #272d1e;
+    --color-emerald-200: #353e27;
+    --color-emerald-300: #4a5635;
+    --color-emerald-400: #647646;
+    --color-emerald-500: #7f9458;
+    --color-emerald-600: #9aaf6e;
+    --color-emerald-700: #b4c58f;
+    --color-emerald-800: #ccd9b0;
+    --color-emerald-900: #e3ecd0;
+
+    --color-rose-50: #2a1d16;
+    --color-rose-100: #35241b;
+    --color-rose-200: #4a2f22;
+    --color-rose-300: #6b3f2d;
+    --color-rose-400: #92563b;
+    --color-rose-500: #b47050;
+    --color-rose-600: #d18a66;
+    --color-rose-700: #dfa687;
+    --color-rose-800: #ecc4ad;
+    --color-rose-900: #f7dfd1;
+
+    --color-amber-50: #2a2112;
+    --color-amber-100: #362a17;
+    --color-amber-200: #4c3a1d;
+    --color-amber-300: #6e5227;
+    --color-amber-400: #957030;
+    --color-amber-500: #ba8f3a;
+    --color-amber-600: #d5ae50;
+    --color-amber-700: #e0c176;
+    --color-amber-800: #ecd5a2;
+    --color-amber-900: #f6e9c8;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5),
+      0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55),
+      0 4px 6px -4px rgba(0, 0, 0, 0.45);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6),
+      0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

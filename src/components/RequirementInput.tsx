@@ -36,7 +36,7 @@ export default function RequirementInput({
   const [keyOpen, setKeyOpen] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 ease-out hover:-translate-y-1.5 hover:border-slate-300 hover:shadow-xl">
       <label
         htmlFor="requirement"
         className="mb-2 block text-sm font-medium text-slate-700"

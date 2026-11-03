@@ -206,7 +206,7 @@ export default function Home() {
   const total = outcome.results.length + outcome.overBudget.length;
 
   return (
-    <div className="min-h-full bg-slate-50 text-slate-900">
+    <div className="min-h-full text-slate-900">
       <main className="mx-auto w-full max-w-4xl px-5 py-12">
         <SiteHeader />
 

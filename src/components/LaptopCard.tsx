@@ -22,7 +22,7 @@ export default function LaptopCard({ result }: LaptopCardProps) {
   const { laptop, reason, overBudgetBy } = result;
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300">
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 ease-out hover:-translate-y-1.5 hover:border-slate-300 hover:shadow-xl">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-base font-semibold text-slate-900">
           {laptop.brand} {laptop.model}
