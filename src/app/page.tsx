@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AgentChat from "@/components/AgentChat";
+import AiGuessYouLike from "@/components/AiGuessYouLike";
 import AnalysisStage from "@/components/AnalysisStage";
 import ConstraintPanel from "@/components/ConstraintPanel";
 import GuideList from "@/components/GuideList";
@@ -227,6 +228,8 @@ export default function Home() {
           available={!demoMode}
           onApplyConstraints={applyConstraints}
         />
+
+        <AiGuessYouLike />
 
         <AnalysisStage
           key={parseSeq}
