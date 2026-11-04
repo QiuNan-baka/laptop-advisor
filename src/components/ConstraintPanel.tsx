@@ -24,6 +24,8 @@ function renderConstraintValue(
   if (key === "usages") {
     return (value as string[]).map((v) => USAGE_NAMES[v] ?? v).join("、");
   }
+  // 品牌 / 机型 都是字符串数组，直接顿号连接展示
+  if (Array.isArray(value)) return value.join("、");
   if (typeof value === "boolean") return "";
   const unit = CONSTRAINT_UNITS[key] ?? "";
   return `${value}${unit}`;

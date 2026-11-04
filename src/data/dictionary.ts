@@ -36,6 +36,10 @@ export interface Constraints {
   preferStrongIGpu?: boolean;
   /** 命中的用途标签 */
   usages?: UsageTag[];
+  /** 品牌白名单（品牌标签，命中任一台机器的品牌标签即入选） */
+  brands?: string[];
+  /** 直接检索的机型名（用户直接搜型号，如"无界15X""MacBook"，本地识别，AI 不产生） */
+  models?: string[];
 }
 
 /** 约束键 → 人话标签 */
@@ -54,6 +58,8 @@ export const CONSTRAINT_LABELS: Record<keyof Constraints, string> = {
   preferEfficient: "优先高能效芯片",
   preferStrongIGpu: "优先强核显",
   usages: "适用场景",
+  brands: "品牌",
+  models: "机型",
 };
 
 /** 约束键 → 单位（用于把数字渲染成人话） */

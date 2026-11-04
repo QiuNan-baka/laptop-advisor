@@ -105,6 +105,17 @@ export async function parseWithFallback(
     const aiTraces = normalizeTraces(ai.traces);
     if (rec.note) aiTraces.push(rec.note);
 
+    // 机型名检索只由本地做（AI 永远不生成机型名）。AI 即使配置了 Key、翻译成功，
+    // 用户直接搜"无界15X"这类型号也必须命中——把本地识别出的机型名合并进最终约束。
+    if (ruleResult.constraints.models?.length) {
+      rec.constraints.models = ruleResult.constraints.models;
+      aiTraces.push({
+        label: "机型",
+        explain: `我识别出你直接想找这些机型：${ruleResult.constraints.models.join("、")}。我按机型名来精确匹配。`,
+        keys: ["models"],
+      });
+    }
+
     return {
       ok: true,
       source,

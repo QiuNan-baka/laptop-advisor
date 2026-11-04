@@ -87,6 +87,10 @@ export const ConstraintsSchema = z.object({
     .array(UsageTagSchema)
     .nullish()
     .transform((v) => (v === null ? undefined : v)),
+  brands: z
+    .array(z.string())
+    .nullish()
+    .transform((v) => (v === null ? undefined : v)),
 });
 
 /** 一条翻译依据：为什么把这句话理解成了这个条件 */

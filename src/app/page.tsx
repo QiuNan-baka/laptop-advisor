@@ -104,6 +104,8 @@ export default function Home() {
     if (constraints.preferEfficient) parts.push("优先高能效芯片（续航久）");
     if (constraints.preferStrongIGpu) parts.push("轻度游戏，优先强核显");
     if (constraints.usages?.length) parts.push(`用途 ${constraints.usages.join("/")}`);
+    if (constraints.brands?.length) parts.push(`品牌 ${constraints.brands.join("/")}`);
+    if (constraints.models?.length) parts.push(`机型 ${constraints.models.join("/")}`);
 
     const names = [...outcome.overBudget, ...outcome.results]
       .map((r) => `${r.laptop.brand} ${r.laptop.model}`)

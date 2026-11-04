@@ -12,6 +12,8 @@
 
 import { laptops, type Laptop } from "@/data/laptops";
 import { formatCpu, efficiencyTier, hasStrongIGpu, isEfficientCpu } from "@/lib/cpu";
+import { brandTags, extractBrands } from "@/lib/brand";
+import { extractModels, matchesModel } from "@/lib/model";
 import {
   CONSTRAINT_LABELS,
   CONSTRAINT_UNITS,
@@ -83,6 +85,31 @@ export function parseRequirement(text: string): ParseResult {
       label: "具体参数",
       explain: "你报出了具体数值，我直接按你给的数字来筛。",
       keys: Object.keys(numbers) as (keyof Constraints)[],
+    });
+  }
+
+  // 1.7 品牌识别：把「品牌名」翻译成品牌白名单。
+  // 母品牌（联想/华硕/小米/戴尔）会展开命中其子品牌（ThinkPad/来酷、ROG、红米、ALIENWARE），
+  // 子品牌只命中自身。详见 src/lib/brand.ts。
+  const brands = extractBrands(text);
+  if (brands.length > 0) {
+    constraints.brands = brands.map((b) => b.label);
+    traces.push({
+      label: "品牌",
+      explain: brands.map((b) => b.explain).join("；"),
+      keys: ["brands"],
+    });
+  }
+
+  // 1.8 机型检索：用户直接搜型号（"无界15X""MacBook Pro 14"），
+  // 本地归一化匹配机型库，命中则加入白名单。AI 不产生机型名，这一步只走本地。
+  const models = extractModels(text);
+  if (models.length > 0) {
+    constraints.models = models;
+    traces.push({
+      label: "机型",
+      explain: `我识别出你直接想找这些机型：${models.join("、")}。我按机型名来精确匹配。`,
+      keys: ["models"],
     });
   }
 
@@ -201,6 +228,15 @@ export function satisfies(l: Laptop, c: Constraints): boolean {
   if (c.storageMin !== undefined && (l.storage === undefined || l.storage < c.storageMin)) return false;
   if (c.batteryMin !== undefined && (l.battery === undefined || l.battery < c.batteryMin)) return false;
   if (c.requireDiscreteGpu && !/RTX|GTX|Radeon RX/.test(l.gpu)) return false;
+  // 品牌白名单：命中任一台机器的品牌标签即入选（母品牌标签会反向覆盖子品牌）
+  if (c.brands !== undefined && c.brands.length > 0) {
+    const tags = brandTags(l);
+    if (!c.brands.some((b) => tags.includes(b))) return false;
+  }
+  // 机型名白名单：用户直接搜型号，只保留命中的机器
+  if (c.models !== undefined && c.models.length > 0) {
+    if (!c.models.some((m) => matchesModel(l, m))) return false;
+  }
   // 注意：preferEfficient / preferStrongIGpu 都是「软偏好」而非硬过滤——它们不在这里做硬性排除，
   // 只在 countHits 加权和 rank 排序里把高能效芯片 / 强核显的机型往前排。
   return true;
@@ -218,6 +254,8 @@ function countHits(l: Laptop, c: Constraints): number {
   if (c.storageMin !== undefined) n++;
   if (c.batteryMin !== undefined) n++;
   if (c.requireDiscreteGpu) n++;
+  if (c.brands?.length && brandTags(l).some((t) => c.brands!.includes(t))) n++;
+  if (c.models?.length && c.models.some((m) => matchesModel(l, m))) n++;
   if (c.preferEfficient && isEfficientCpu(l.cpu.name)) n++;
   if (c.preferStrongIGpu && hasStrongIGpu(l.cpu.name)) n++;
   if (c.usages?.length && c.usages.some((u) => l.tags.includes(u))) n++;

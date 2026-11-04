@@ -27,6 +27,7 @@ export const FIELD_GUIDE = `
 - preferStrongIGpu：是否优先强核显。用户说"轻度玩游戏""偶尔玩3A""轻度3A""随便玩玩"→ 翻译成 true。轻度玩 3A 不强求独显，核显里只有 Intel Core Ultra X7-358H / X9-388H 的 Arc 核显能带得动，其余核显玩不动。
 - requireDiscreteGpu：是否需要独立显卡。只有用户明确说"剪辑/建模/玩 3A 游戏"（重度）才给 true。
 - usages：适用场景数组，取值只能是 office / coding / gaming / design / study / video。
+- brands：品牌白名单数组。用户明确提到某个品牌时，填品牌标签（中文名，如"联想""华硕""机械革命""苹果"）。母品牌要展开成子品牌：说"联想"要包含 ThinkPad、来酷；说"华硕"要包含 ROG；说"小米"要包含红米；说"戴尔"要包含 ALIENWARE。用户只说了子品牌（"ROG""红米""ThinkPad""来酷""外星人"）就只填该子品牌，不要反过来填母品牌。没提品牌就省略。
 `;
 
 export const SYSTEM_PROMPT = `你是一个笔记本选购助手的需求翻译器。

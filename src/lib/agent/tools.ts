@@ -83,6 +83,7 @@ const FilterArgs = z.object({
   preferStrongIGpu: z.boolean().optional(),
   requireDiscreteGpu: z.boolean().optional(),
   usages: z.array(UsageEnum).optional(),
+  brands: z.array(z.string()).optional(),
 });
 
 const DetailArgs = z.object({
@@ -125,6 +126,7 @@ const ConstraintPatchArgs = z.object({
         "preferEfficient",
         "preferStrongIGpu",
         "usages",
+        "brands",
       ])
     )
     .optional(),
@@ -157,6 +159,11 @@ export const TOOLS = [
             type: "array",
             items: { type: "string", enum: ["office", "coding", "gaming", "design", "study", "video"] },
             description: "适用场景",
+          },
+          brands: {
+            type: "array",
+            items: { type: "string" },
+            description: "品牌白名单（用户明确提到品牌时填中文品牌标签，如 联想/华硕/机械革命/苹果/ROG/红米。母品牌展开子品牌：联想含 ThinkPad+来酷、华硕含 ROG、小米含红米、戴尔含 ALIENWARE；只提子品牌则只填子品牌）",
           },
         },
       },
@@ -250,13 +257,13 @@ export const TOOLS = [
         properties: {
           set: {
             type: "object",
-            description: "要新增或修改的条件，键与 filter_laptops 相同（budgetMax/weightMax/screenSizeMin/ppiMin/refreshMin/ramMin/storageMin/batteryMin/preferEfficient/preferStrongIGpu/requireDiscreteGpu/usages）",
+            description: "要新增或修改的条件，键与 filter_laptops 相同（budgetMax/weightMax/screenSizeMin/ppiMin/refreshMin/ramMin/storageMin/batteryMin/preferEfficient/preferStrongIGpu/requireDiscreteGpu/usages/brands）",
           },
           clear: {
             type: "array",
             items: {
               type: "string",
-              enum: ["budgetMin", "budgetMax", "weightMax", "screenSizeMin", "screenSizeMax", "ppiMin", "refreshMin", "ramMin", "storageMin", "batteryMin", "requireDiscreteGpu", "preferEfficient", "preferStrongIGpu", "usages"],
+              enum: ["budgetMin", "budgetMax", "weightMax", "screenSizeMin", "screenSizeMax", "ppiMin", "refreshMin", "ramMin", "storageMin", "batteryMin", "requireDiscreteGpu", "preferEfficient", "preferStrongIGpu", "usages", "brands"],
             },
             description: "要删除的条件键（用户明确说不要/去掉某条限制时用）",
           },
@@ -306,6 +313,8 @@ export function describeConstraints(c: Constraints): string[] {
     const v = c[key];
     if (v === undefined || v === null) continue;
     if (key === "usages") continue;
+    if (key === "brands") continue;
+    if (key === "models") continue;
     if (typeof v === "boolean") {
       out.push(CONSTRAINT_LABELS[key]);
     } else {
@@ -313,6 +322,8 @@ export function describeConstraints(c: Constraints): string[] {
     }
   }
   if (c.usages?.length) out.push(`场景 ${c.usages.join("/")}`);
+  if (c.brands?.length) out.push(`品牌 ${c.brands.join("/")}`);
+  if (c.models?.length) out.push(`机型 ${c.models.join("/")}`);
   return out;
 }
 
