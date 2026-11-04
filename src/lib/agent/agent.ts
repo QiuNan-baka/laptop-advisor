@@ -316,7 +316,7 @@ export async function runAgent({ question, provider, emit, seedContext }: RunAge
         const label = describeCall(call.name, call.args);
         emit({ type: "tool_call", name: call.name, label });
 
-        const result = executeTool(call.name, call.args);
+        const result = await executeTool(call.name, call.args);
 
         if (result.citations?.length) {
           for (const c of result.citations) cited.set(c.id, c);

@@ -294,6 +294,94 @@ export function searchKnowledge(
   return hits.slice(0, limit);
 }
 
+// ---------- 语义检索（embedding 向量） ----------
+
+import { embedTexts, hasEmbedding } from "@/lib/ai/embedding";
+
+/** 余弦相似度：两个向量的夹角越小越接近 1，意思越相近 */
+function cosine(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+/** 162 个知识块预先算好的向量，懒加载一次后常驻内存 */
+let semanticVectors: number[][] | null = null;
+let semanticLoading: Promise<number[][]> | null = null;
+
+/** 预计算全部知识块的向量（首次调用时才真正去算） */
+function getSemanticVectors(): Promise<number[][]> {
+  if (semanticVectors) return Promise.resolve(semanticVectors);
+  if (!semanticLoading) {
+    semanticLoading = embedTexts(chunks.map((c) => `${c.title} ${c.text}`))
+      .then((vecs) => {
+        semanticVectors = vecs;
+        return vecs;
+      })
+      .catch((e) => {
+        semanticLoading = null; // 失败后允许下次重试
+        throw e;
+      });
+  }
+  return semanticLoading;
+}
+
+/**
+ * 语义检索：把查询和知识块都转成向量，取余弦相似度最高的前 limit 块。
+ * 与 searchKnowledge（BM25 词法）返回同一个 Hit 结构，下游零改动。
+ */
+export async function searchKnowledgeSemantic(
+  query: string,
+  limit = 5
+): Promise<Hit[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const [queryVec, chunkVecs] = await Promise.all([
+    embedTexts([q]),
+    getSemanticVectors(),
+  ]);
+
+  const scored = chunkVecs
+    .map((vec, i) => ({ i, score: cosine(queryVec[0], vec) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  return scored.map(({ i, score }) => ({
+    chunk: chunks[i],
+    score,
+    matched: [],
+  }));
+}
+
+/**
+ * 智能检索入口 —— 三层降级：
+ *   第 1 层：有 Key → 语义检索（embedding 向量）
+ *   第 2 层：没 Key / 失败 → 词法检索（BM25）
+ *   第 3 层：都没命中 → 返回空，让 AI 明说查不到
+ * 对外只暴露这一个函数，上层调用方不关心走的是哪条路。
+ */
+export async function smartSearch(query: string, limit = 5): Promise<Hit[]> {
+  if (hasEmbedding()) {
+    try {
+      const semantic = await searchKnowledgeSemantic(query, limit);
+      if (semantic.length > 0) return semantic;
+    } catch {
+      // embedding 失败不致命，落回词法检索
+    }
+  }
+  return searchKnowledge(query, limit);
+}
+
 /** 把检索结果压成给模型看的文本（省 token，格式稳定） */
 export function formatHitsForModel(hits: Hit[]): string {
   if (hits.length === 0) {

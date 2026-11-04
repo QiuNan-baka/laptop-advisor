@@ -31,7 +31,7 @@ import {
 } from "@/data/guide-catalog";
 import { satisfies } from "@/lib/match";
 import { formatCpu, efficiencyTier, hasStrongIGpu } from "@/lib/cpu";
-import { formatHitsForModel, searchKnowledge, toCitations, type Citation } from "./rag";
+import { formatHitsForModel, smartSearch, toCitations, type Citation } from "./rag";
 
 // ---------- 工具执行结果 ----------
 
@@ -387,7 +387,7 @@ function findLaptop(id?: string, name?: string): Laptop | undefined {
  * 任何异常都在这里被兜住，返回给模型的永远是一段可读文本，
  * 而不是让整个 Agent 循环崩掉。
  */
-export function executeTool(name: string, rawArgs: string): ToolResult {
+export async function executeTool(name: string, rawArgs: string): Promise<ToolResult> {
   const args = safeJson(rawArgs);
 
   switch (name) {
@@ -562,12 +562,12 @@ function runCompare(args: unknown): ToolResult {
   };
 }
 
-function runReview(args: unknown): ToolResult {
+async function runReview(args: unknown): Promise<ToolResult> {
   const parsed = ReviewArgs.safeParse(args);
   if (!parsed.success) {
     return { content: "参数不合法：query 必填，1-120 字。", summary: "检索参数不合法" };
   }
-  const hits = searchKnowledge(parsed.data.query, parsed.data.limit ?? 5);
+  const hits = await smartSearch(parsed.data.query, parsed.data.limit ?? 5);
   return {
     content: formatHitsForModel(hits),
     citations: toCitations(hits),
