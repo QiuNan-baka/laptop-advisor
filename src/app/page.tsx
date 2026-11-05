@@ -10,13 +10,36 @@ import ResultByCategory from "@/components/ResultByCategory";
 import RelaxNotice from "@/components/RelaxNotice";
 import RequirementInput from "@/components/RequirementInput";
 import FavoritesPanel from "@/components/FavoritesPanel";
+import LandingPage from "@/components/LandingPage";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import TranslationStatus from "@/components/TranslationStatus";
+import MouseConstraintPanel from "@/components/MouseConstraintPanel";
+import MouseGuessYouLike from "@/components/MouseGuessYouLike";
+import MouseResultList from "@/components/MouseResultList";
+import KeyboardConstraintPanel from "@/components/KeyboardConstraintPanel";
+import KeyboardGuessYouLike from "@/components/KeyboardGuessYouLike";
+import KeyboardResultList from "@/components/KeyboardResultList";
+import MonitorConstraintPanel from "@/components/MonitorConstraintPanel";
+import MonitorGuessYouLike from "@/components/MonitorGuessYouLike";
+import MonitorResultList from "@/components/MonitorResultList";
 import { dictionary, type Constraints } from "@/data/dictionary";
+import { categoryMeta, DEFAULT_CATEGORY, type CategoryId } from "@/data/categories";
 import { guideCatalog } from "@/data/guide-catalog";
 import { laptops } from "@/data/laptops";
-import { probeProvider, requestParse } from "@/lib/ai/api-client";
+import { mice } from "@/data/mouse-specs";
+import { keyboards } from "@/data/keyboard-specs";
+import { monitors } from "@/data/monitor-specs";
+import { mouseDictionary } from "@/data/mouse-dictionary";
+import { keyboardDictionary } from "@/data/keyboard-dictionary";
+import { monitorDictionary } from "@/data/monitor-dictionary";
+import {
+  probeProvider,
+  requestParse,
+  requestParseKeyboard,
+  requestParseMonitor,
+  requestParseMouse,
+} from "@/lib/ai/api-client";
 import type { Trace, UnifiedParseResult } from "@/lib/ai/types";
 import {
   categoryFromUsages,
@@ -24,15 +47,28 @@ import {
   guideNearBudget,
 } from "@/lib/guide";
 import { match } from "@/lib/match";
+import {
+  matchMice,
+  type MouseMatchOutcome,
+  type MouseParseResult,
+} from "@/lib/mouse-match";
+import {
+  matchKeyboards,
+  type KeyboardMatchOutcome,
+  type KeyboardParseResult,
+} from "@/lib/keyboard-match";
+import {
+  matchMonitors,
+  type MonitorMatchOutcome,
+  type MonitorParseResult,
+} from "@/lib/monitor-match";
+import type { MouseUnifiedParseResult } from "@/lib/ai/mouse-parse";
+import type { KeyboardUnifiedParseResult } from "@/lib/ai/keyboard-parse";
+import type { MonitorUnifiedParseResult } from "@/lib/ai/monitor-parse";
+import type { MouseConstraints } from "@/data/mouse-dictionary";
+import type { KeyboardConstraints } from "@/data/keyboard-dictionary";
+import type { MonitorConstraints } from "@/data/monitor-dictionary";
 import type { ConstraintPatch } from "@/lib/agent/tools";
-
-const EXAMPLES = [
-  "预算 6000 以内，主要写代码，屏幕要看得清，最好轻一点",
-  "打游戏，预算 8000 左右，屏幕要爽",
-  "上课用，一天不用充电，背着不累",
-  "剪视频，要独显，内存大一点",
-];
-
 /**
  * 页面编排层：只管状态，不管样式。
  *
@@ -45,6 +81,7 @@ export default function Home() {
   const [constraints, setConstraints] = useState<Constraints>({});
   const [traces, setTraces] = useState<Trace[]>([]);
   const [result, setResult] = useState<UnifiedParseResult | null>(null);
+  const [mouseResult, setMouseResult] = useState<MouseUnifiedParseResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
@@ -53,6 +90,30 @@ export default function Home() {
   const [parseSeq, setParseSeq] = useState(0);
   // 是否打开「我的收藏」二级界面
   const [showFavorites, setShowFavorites] = useState(false);
+  // 是否已经进入二级界面（主应用）。false = 停留在一级落地页。
+  const [entered, setEntered] = useState(false);
+  // 当前推荐类目（笔记本/键盘/鼠标/显示器）
+  const [category, setCategory] = useState<CategoryId>(DEFAULT_CATEGORY);
+
+  // —— 鼠标类目（纯本地词典，不走大模型）——
+  const [mouseConstraints, setMouseConstraints] = useState<MouseConstraints>({});
+  const [mouseTraces, setMouseTraces] = useState<MouseParseResult["traces"]>([]);
+  const [mouseSubmitted, setMouseSubmitted] = useState(false);
+  const [mouseLoading, setMouseLoading] = useState(false);
+
+  // —— 键盘类目（大模型翻译，失败降级本地词典）——
+  const [keyboardConstraints, setKeyboardConstraints] = useState<KeyboardConstraints>({});
+  const [keyboardTraces, setKeyboardTraces] = useState<KeyboardParseResult["traces"]>([]);
+  const [keyboardSubmitted, setKeyboardSubmitted] = useState(false);
+  const [keyboardLoading, setKeyboardLoading] = useState(false);
+  const [keyboardResult, setKeyboardResult] = useState<KeyboardUnifiedParseResult | null>(null);
+
+  // —— 显示器类目（大模型翻译，失败降级本地词典）——
+  const [monitorConstraints, setMonitorConstraints] = useState<MonitorConstraints>({});
+  const [monitorTraces, setMonitorTraces] = useState<MonitorParseResult["traces"]>([]);
+  const [monitorSubmitted, setMonitorSubmitted] = useState(false);
+  const [monitorLoading, setMonitorLoading] = useState(false);
+  const [monitorResult, setMonitorResult] = useState<MonitorUnifiedParseResult | null>(null);
 
   /** 上一次请求的取消器：用户连点示例时，旧请求立刻作废 */
   const inFlight = useRef<AbortController | null>(null);
@@ -70,6 +131,24 @@ export default function Home() {
 
   // 条件一变就重算。match 是纯函数，AI 完全不参与这一步。
   const outcome = useMemo(() => match(constraints), [constraints]);
+
+  // 鼠标结果：纯本地词典解析 + 规则引擎，也是纯函数
+  const mouseOutcome = useMemo<MouseMatchOutcome>(
+    () => matchMice(mouseConstraints),
+    [mouseConstraints]
+  );
+
+  // 键盘结果：纯本地词典 + 规则引擎
+  const keyboardOutcome = useMemo<KeyboardMatchOutcome>(
+    () => matchKeyboards(keyboardConstraints),
+    [keyboardConstraints]
+  );
+
+  // 显示器结果：纯本地词典 + 规则引擎
+  const monitorOutcome = useMemo<MonitorMatchOutcome>(
+    () => matchMonitors(monitorConstraints),
+    [monitorConstraints]
+  );
 
   // 名录参考：和硬筛选完全独立，只在有预算或用途时给同价位参考
   const guideEntries = useMemo(() => {
@@ -123,6 +202,108 @@ export default function Home() {
         return;
       }
 
+      // 鼠标类目：走大模型翻译（模糊概念靠大模型分辨），失败自动降级本地词典
+      if (category === "mouse") {
+        inFlight.current?.abort();
+        const controller = new AbortController();
+        inFlight.current = controller;
+
+        setMouseLoading(true);
+        setError(null);
+
+        const res = await requestParseMouse(input, {
+          userKey,
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
+        setMouseLoading(false);
+
+        if (!res.ok) {
+          setError(
+            res.error.retryAfterSec
+              ? `${res.error.message}（还需要等 ${res.error.retryAfterSec} 秒）`
+              : res.error.message
+          );
+          return;
+        }
+
+        setMouseResult(res.data);
+        setMouseConstraints(res.data.constraints);
+        setMouseTraces(res.data.traces);
+        setMouseSubmitted(true);
+        return;
+      }
+
+      // 键盘类目：走大模型翻译（模糊概念靠大模型分辨），失败自动降级本地词典
+      if (category === "keyboard") {
+        inFlight.current?.abort();
+        const controller = new AbortController();
+        inFlight.current = controller;
+
+        setKeyboardLoading(true);
+        setError(null);
+
+        const res = await requestParseKeyboard(input, {
+          userKey,
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
+        setKeyboardLoading(false);
+
+        if (!res.ok) {
+          setError(
+            res.error.retryAfterSec
+              ? `${res.error.message}（还需要等 ${res.error.retryAfterSec} 秒）`
+              : res.error.message
+          );
+          return;
+        }
+
+        setKeyboardResult(res.data);
+        setKeyboardConstraints(res.data.constraints);
+        setKeyboardTraces(res.data.traces);
+        setKeyboardSubmitted(true);
+        return;
+      }
+
+      // 显示器类目：走大模型翻译，失败自动降级本地词典
+      if (category === "monitor") {
+        inFlight.current?.abort();
+        const controller = new AbortController();
+        inFlight.current = controller;
+
+        setMonitorLoading(true);
+        setError(null);
+
+        const res = await requestParseMonitor(input, {
+          userKey,
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
+        setMonitorLoading(false);
+
+        if (!res.ok) {
+          setError(
+            res.error.retryAfterSec
+              ? `${res.error.message}（还需要等 ${res.error.retryAfterSec} 秒）`
+              : res.error.message
+          );
+          return;
+        }
+
+        setMonitorResult(res.data);
+        setMonitorConstraints(res.data.constraints);
+        setMonitorTraces(res.data.traces);
+        setMonitorSubmitted(true);
+        return;
+      }
+
       // 取消上一次还没回来的请求，避免“后发先至”把旧结果盖上来
       inFlight.current?.abort();
       const controller = new AbortController();
@@ -156,11 +337,35 @@ export default function Home() {
       setTraces(res.data.traces);
       setSubmitted(true);
     },
-    [userKey]
+    [userKey, category]
   );
 
   function removeConstraint(key: keyof Constraints) {
     setConstraints((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function removeMouseConstraint(key: keyof MouseConstraints) {
+    setMouseConstraints((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function removeKeyboardConstraint(key: keyof KeyboardConstraints) {
+    setKeyboardConstraints((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function removeMonitorConstraint(key: keyof MonitorConstraints) {
+    setMonitorConstraints((prev) => {
       const next = { ...prev };
       delete next[key];
       return next;
@@ -206,26 +411,106 @@ export default function Home() {
     setError(null);
     setLoading(false);
     setSubmitted(false);
+    setMouseConstraints({});
+    setMouseTraces([]);
+    setMouseSubmitted(false);
+    setMouseLoading(false);
+    setMouseResult(null);
+    setKeyboardConstraints({});
+    setKeyboardTraces([]);
+    setKeyboardSubmitted(false);
+    setKeyboardLoading(false);
+    setKeyboardResult(null);
+    setMonitorConstraints({});
+    setMonitorTraces([]);
+    setMonitorSubmitted(false);
+    setMonitorLoading(false);
+    setMonitorResult(null);
+  }
+
+  /** 切换推荐类目：重置已筛出的结果，但保留输入框文本与 Key */
+  function switchCategory(id: CategoryId) {
+    if (id === category) return;
+    setCategory(id);
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setConstraints({});
+    setTraces([]);
+    setResult(null);
+    setError(null);
+    setLoading(false);
+    setSubmitted(false);
+    setMouseConstraints({});
+    setMouseTraces([]);
+    setMouseSubmitted(false);
+    setMouseLoading(false);
+    setMouseResult(null);
+    setKeyboardConstraints({});
+    setKeyboardTraces([]);
+    setKeyboardSubmitted(false);
+    setKeyboardLoading(false);
+    setKeyboardResult(null);
+    setMonitorConstraints({});
+    setMonitorTraces([]);
+    setMonitorSubmitted(false);
+    setMonitorLoading(false);
+    setMonitorResult(null);
   }
 
   const total = outcome.results.length + outcome.overBudget.length;
+  const meta = categoryMeta(category);
+  const isLaptop = category === "laptop";
+  const isMouse = category === "mouse";
+  const isKeyboard = category === "keyboard";
+  const isMonitor = category === "monitor";
+  // 例区与 placeholder 都随类目走
+  const examples = meta.examples;
+  const placeholder = meta.placeholder;
+
+  const mouseTotal = mouseOutcome.results.length + mouseOutcome.overBudget.length;
+  const keyboardTotal = keyboardOutcome.results.length + keyboardOutcome.overBudget.length;
+  const monitorTotal = monitorOutcome.results.length + monitorOutcome.overBudget.length;
+
+  // 一级落地页：未进入前只显示主题页
+  if (!entered) {
+    return <LandingPage onEnter={() => setEntered(true)} />;
+  }
 
   return (
     <div className="min-h-full text-slate-900">
       <main className="mx-auto w-full max-w-4xl px-5 py-12">
-        <SiteHeader onOpenFavorites={() => setShowFavorites(true)} />
+        {/* 左上角：返回一级界面 */}
+        <button
+          type="button"
+          onClick={() => setEntered(false)}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-amber-700"
+        >
+          <span aria-hidden>←</span> 返回
+        </button>
+
+        <SiteHeader
+          onOpenFavorites={() => setShowFavorites(true)}
+          activeCategory={category}
+          onSwitchCategory={switchCategory}
+        />
 
         <RequirementInput
           text={text}
           onTextChange={setText}
           onParse={runParse}
           onReset={reset}
-          examples={EXAMPLES}
-          loading={loading}
+          examples={examples}
+          loading={isMouse ? mouseLoading : isKeyboard ? keyboardLoading : isMonitor ? monitorLoading : loading}
           error={error}
           userKey={userKey}
           onUserKeyChange={setUserKey}
+          question={meta.question}
+          placeholder={placeholder}
         />
+
+        {isMouse && <MouseGuessYouLike />}
+        {isKeyboard && <KeyboardGuessYouLike />}
+        {isMonitor && <MonitorGuessYouLike />}
 
         <AgentChat
           seedContext={seedContext}
@@ -234,19 +519,34 @@ export default function Home() {
           onApplyConstraints={applyConstraints}
         />
 
-        <AiGuessYouLike />
+        {isLaptop && <AiGuessYouLike enabled={isLaptop} />}
 
         <AnalysisStage
           key={parseSeq}
-          active={loading}
+          active={isMouse ? mouseLoading : isKeyboard ? keyboardLoading : isMonitor ? monitorLoading : loading}
           elapsedMs={result?.elapsedMs}
         />
 
-        {result && (
+        {isLaptop && result && (
           <TranslationStatus result={result} demoMode={demoMode} />
         )}
 
-        {submitted && (
+        {/* 鼠标类目：大模型翻译状态条（与笔记本同款） */}
+        {isMouse && mouseResult && (
+          <TranslationStatus result={mouseResult} demoMode={demoMode} />
+        )}
+
+        {/* 键盘类目：大模型翻译状态条 */}
+        {isKeyboard && keyboardResult && (
+          <TranslationStatus result={keyboardResult} demoMode={demoMode} />
+        )}
+
+        {/* 显示器类目：大模型翻译状态条 */}
+        {isMonitor && monitorResult && (
+          <TranslationStatus result={monitorResult} demoMode={demoMode} />
+        )}
+
+        {isLaptop && submitted && (
           <ConstraintPanel
             constraints={constraints}
             traces={traces}
@@ -254,14 +554,101 @@ export default function Home() {
           />
         )}
 
-        {submitted && outcome.didRelax && (
+        {/* —— 鼠标类目：本地词典解析的结果面板 + 匹配结果 —— */}
+        {isMouse && mouseSubmitted && (
+          <MouseConstraintPanel
+            constraints={mouseConstraints}
+            traces={mouseTraces}
+            onRemove={removeMouseConstraint}
+          />
+        )}
+
+        {isMouse && mouseSubmitted && mouseOutcome.didRelax && (
+          <RelaxNotice
+            resultsCount={mouseOutcome.results.length}
+            relaxLog={mouseOutcome.relaxLog}
+          />
+        )}
+
+        {isMouse && mouseSubmitted && mouseTotal > 0 && (
+          <section className="mt-6">
+            <h2 className="mb-3 text-sm font-semibold text-slate-800">
+              {mouseOutcome.results.length > 0
+                ? `匹配到 ${mouseOutcome.results.length} 款`
+                : `预算内 0 款 · 以下是超预算、但其他条件都满足的 ${mouseOutcome.overBudget.length} 款`}
+            </h2>
+            <MouseResultList
+              items={[...mouseOutcome.overBudget, ...mouseOutcome.results]}
+            />
+          </section>
+        )}
+
+        {/* —— 键盘类目 —— */}
+        {isKeyboard && keyboardSubmitted && (
+          <KeyboardConstraintPanel
+            constraints={keyboardConstraints}
+            traces={keyboardTraces}
+            onRemove={removeKeyboardConstraint}
+          />
+        )}
+
+        {isKeyboard && keyboardSubmitted && keyboardOutcome.didRelax && (
+          <RelaxNotice
+            resultsCount={keyboardOutcome.results.length}
+            relaxLog={keyboardOutcome.relaxLog}
+          />
+        )}
+
+        {isKeyboard && keyboardSubmitted && keyboardTotal > 0 && (
+          <section className="mt-6">
+            <h2 className="mb-3 text-sm font-semibold text-slate-800">
+              {keyboardOutcome.results.length > 0
+                ? `匹配到 ${keyboardOutcome.results.length} 款`
+                : `预算内 0 款 · 以下是超预算、但其他条件都满足的 ${keyboardOutcome.overBudget.length} 款`}
+            </h2>
+            <KeyboardResultList
+              items={[...keyboardOutcome.overBudget, ...keyboardOutcome.results]}
+            />
+          </section>
+        )}
+
+        {/* —— 显示器类目 —— */}
+        {isMonitor && monitorSubmitted && (
+          <MonitorConstraintPanel
+            constraints={monitorConstraints}
+            traces={monitorTraces}
+            onRemove={removeMonitorConstraint}
+          />
+        )}
+
+        {isMonitor && monitorSubmitted && monitorOutcome.didRelax && (
+          <RelaxNotice
+            resultsCount={monitorOutcome.results.length}
+            relaxLog={monitorOutcome.relaxLog}
+          />
+        )}
+
+        {isMonitor && monitorSubmitted && monitorTotal > 0 && (
+          <section className="mt-6">
+            <h2 className="mb-3 text-sm font-semibold text-slate-800">
+              {monitorOutcome.results.length > 0
+                ? `匹配到 ${monitorOutcome.results.length} 款`
+                : `预算内 0 款 · 以下是超预算、但其他条件都满足的 ${monitorOutcome.overBudget.length} 款`}
+            </h2>
+            <MonitorResultList
+              items={[...monitorOutcome.overBudget, ...monitorOutcome.results]}
+            />
+          </section>
+        )}
+
+        {isLaptop && submitted && outcome.didRelax && (
           <RelaxNotice
             resultsCount={outcome.results.length}
             relaxLog={outcome.relaxLog}
           />
         )}
 
-        {submitted && total > 0 && (
+        {isLaptop && submitted && total > 0 && (
           <section className="mt-6">
             <h2 className="mb-3 text-sm font-semibold text-slate-800">
               {outcome.results.length > 0
@@ -274,17 +661,36 @@ export default function Home() {
           </section>
         )}
 
-        {submitted && guideEntries.length > 0 && (
+        {isLaptop && submitted && guideEntries.length > 0 && (
           <GuideList
             entries={guideEntries}
             budget={constraints.budgetMax}
           />
         )}
 
+        {!isLaptop && !isMouse && !isKeyboard && !isMonitor && (
+          <section className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white/50 p-8 text-center">
+            <p className="text-sm text-slate-400">
+              「{meta.menuLabel}」的机型库与需求词典数据待补充，翻译检索功能已就绪，
+              等你提供数据后即可接入。
+            </p>
+          </section>
+        )}
+
         <SiteFooter
-          laptopCount={laptops.length}
-          dictionaryCount={dictionary.length}
-          guideCount={guideCatalog.length}
+          laptopCount={
+            isLaptop ? laptops.length :
+            isMouse ? mice.length :
+            isKeyboard ? keyboards.length :
+            isMonitor ? monitors.length : 0
+          }
+          dictionaryCount={
+            isLaptop ? dictionary.length :
+            isMouse ? mouseDictionary.length :
+            isKeyboard ? keyboardDictionary.length :
+            isMonitor ? monitorDictionary.length : 0
+          }
+          guideCount={isLaptop ? guideCatalog.length : 0}
         />
       </main>
 

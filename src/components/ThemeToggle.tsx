@@ -12,7 +12,9 @@ export default function ThemeToggle() {
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "dark") {
-      setDark(true);
+      // 微任务落地 setState，避免在 effect 体内同步 setState（react-hooks/set-state-in-effect）。
+      // 首帧前的主题恢复由 layout 内联脚本完成，这里只同步按钮图标状态。
+      Promise.resolve().then(() => setDark(true));
       document.documentElement.classList.add("dark");
     }
   }, []);

@@ -9,6 +9,7 @@
  *   - 失败后是不是优雅降级，而不是整个页面报错
  */
 
+import type { z } from "zod";
 import { AiResponseSchema, describeIssues, type AiResponse } from "./schema";
 import { buildRetryMessage, SYSTEM_PROMPT } from "./prompt";
 import type { ProviderConfig } from "./provider";
@@ -183,18 +184,19 @@ export function extractJson(raw: string): string {
 }
 
 /**
- * 调模型并保证返回一个「过了 schema 校验」的对象。
+ * 调模型并保证返回一个「过了 schema 校验」的对象（通用循环）。
  *
- * 失败路径：
- *   格式不对 → 把 Zod 的报错原样塞回去，重试一次
- *   还是不对 → 抛出 AiCallError，由上层决定降级
+ * 笔记本翻译专用的是下面的 callProvider；这里抽一个泛化版，让鼠标/键盘/显示器
+ * 各自传自己的 systemPrompt + Zod schema，共用同一套「重试 + 参数降级 + 超时」逻辑。
  */
-export async function callProvider(
+export async function callWithSchema<T>(
   provider: ProviderConfig,
+  systemPrompt: string,
+  schema: z.ZodType<T>,
   userText: string
-): Promise<AiResponse> {
+): Promise<T> {
   const baseMessages: ChatPayload["messages"] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `用户的原话（请翻译成 JSON）：\n"""\n${userText.trim()}\n"""`,
@@ -228,18 +230,26 @@ export async function callProvider(
       continue;
     }
 
-    const parsed = AiResponseSchema.safeParse(json);
+    const parsed = schema.safeParse(json);
     if (parsed.success) {
       return parsed.data;
     }
 
-    // 校验失败：把每个字段错在哪写清楚，下一轮让模型自己改
     lastIssues = describeIssues(parsed.error);
     if (attempt === MAX_ATTEMPTS) {
       throw new AiCallError(`模型输出不符合格式约定：${lastIssues}`, "schema");
     }
   }
 
-  // 理论上到不了这里
   throw new AiCallError("重试次数已用尽", "schema");
+}
+
+/**
+ * 调模型并保证返回一个「过了 schema 校验」的笔记本翻译对象。
+ */
+export async function callProvider(
+  provider: ProviderConfig,
+  userText: string
+): Promise<AiResponse> {
+  return callWithSchema(provider, SYSTEM_PROMPT, AiResponseSchema, userText);
 }

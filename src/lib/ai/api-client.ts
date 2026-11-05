@@ -12,6 +12,9 @@
  */
 
 import type { ParseError, UnifiedParseResult } from "./types";
+import type { MouseUnifiedParseResult } from "./mouse-parse";
+import type { KeyboardUnifiedParseResult } from "./keyboard-parse";
+import type { MonitorUnifiedParseResult } from "./monitor-parse";
 
 /** 前端等多久算超时。后端自己 20 秒就放弃，这里留点余量兜住网络慢。 */
 const CLIENT_TIMEOUT_MS = 25_000;
@@ -113,6 +116,171 @@ export async function requestParse(
   }
 
   return { ok: true, data: payload as UnifiedParseResult };
+}
+
+export type MouseParseOutcome =
+  | { ok: true; data: MouseUnifiedParseResult }
+  | { ok: false; error: ParseError };
+
+/** 鼠标版 requestParse：调 /api/parse-mouse（鼠标走大模型翻译） */
+export async function requestParseMouse(
+  text: string,
+  options: RequestParseOptions = {}
+): Promise<MouseParseOutcome> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, CLIENT_TIMEOUT_MS);
+  const relayAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", relayAbort, { once: true });
+
+  const cleanup = () => {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", relayAbort);
+  };
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const userKey = options.userKey?.trim();
+  if (userKey) headers["x-user-ai-key"] = userKey;
+
+  let response: Response;
+  try {
+    response = await fetch("/api/parse-mouse", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    cleanup();
+    if (options.signal?.aborted) return { ok: false, error: { message: "已取消" } };
+    if (timedOut) {
+      return { ok: false, error: { message: "翻译太慢了，请再试一次" } };
+    }
+    return { ok: false, error: normalizeError(error) };
+  }
+  cleanup();
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const body = payload as { error?: string; retryAfterSec?: number } | null;
+    return {
+      ok: false,
+      error: {
+        message: body?.error ?? `服务器返回 ${response.status}`,
+        retryAfterSec: body?.retryAfterSec,
+      },
+    };
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return { ok: false, error: { message: "服务器返回了无法识别的内容" } };
+  }
+
+  return { ok: true, data: payload as MouseUnifiedParseResult };
+}
+
+/** 通用：调一个 /api/parse-* 端点，把返回体当类型 T 交出去 */
+async function requestCategoryParse<T>(
+  endpoint: string,
+  text: string,
+  options: RequestParseOptions
+): Promise<{ ok: true; data: T } | { ok: false; error: ParseError }> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, CLIENT_TIMEOUT_MS);
+  const relayAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", relayAbort, { once: true });
+
+  const cleanup = () => {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", relayAbort);
+  };
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const userKey = options.userKey?.trim();
+  if (userKey) headers["x-user-ai-key"] = userKey;
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    cleanup();
+    if (options.signal?.aborted) return { ok: false, error: { message: "已取消" } };
+    if (timedOut) {
+      return { ok: false, error: { message: "翻译太慢了，请再试一次" } };
+    }
+    return { ok: false, error: normalizeError(error) };
+  }
+  cleanup();
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const body = payload as { error?: string; retryAfterSec?: number } | null;
+    return {
+      ok: false,
+      error: {
+        message: body?.error ?? `服务器返回 ${response.status}`,
+        retryAfterSec: body?.retryAfterSec,
+      },
+    };
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return { ok: false, error: { message: "服务器返回了无法识别的内容" } };
+  }
+
+  return { ok: true, data: payload as T };
+}
+
+export type KeyboardParseOutcome =
+  | { ok: true; data: KeyboardUnifiedParseResult }
+  | { ok: false; error: ParseError };
+
+/** 键盘版 requestParse：调 /api/parse-keyboard（键盘走大模型翻译） */
+export function requestParseKeyboard(
+  text: string,
+  options: RequestParseOptions = {}
+): Promise<KeyboardParseOutcome> {
+  return requestCategoryParse<KeyboardUnifiedParseResult>("/api/parse-keyboard", text, options);
+}
+
+export type MonitorParseOutcome =
+  | { ok: true; data: MonitorUnifiedParseResult }
+  | { ok: false; error: ParseError };
+
+/** 显示器版 requestParse：调 /api/parse-monitor（显示器走大模型翻译） */
+export function requestParseMonitor(
+  text: string,
+  options: RequestParseOptions = {}
+): Promise<MonitorParseOutcome> {
+  return requestCategoryParse<MonitorUnifiedParseResult>("/api/parse-monitor", text, options);
 }
 
 /** 探测后端有没有配 Key —— 用来在界面上提示「当前是演示态」 */

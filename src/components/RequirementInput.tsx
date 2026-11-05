@@ -16,6 +16,10 @@ interface RequirementInputProps {
   /** 用户自带的 Key，可选 */
   userKey: string;
   onUserKeyChange: (value: string) => void;
+  /** 输入框上方的问题（随类目变化，如「你想用这个键盘做什么？」） */
+  question?: string;
+  /** 输入框的 placeholder（「例如」那句话，随类目变化） */
+  placeholder?: string;
 }
 
 /**
@@ -32,6 +36,8 @@ export default function RequirementInput({
   error,
   userKey,
   onUserKeyChange,
+  question = "你想用这台笔记本做什么？",
+  placeholder = "例如：预算 6000 以内，平时写代码，屏幕要看得清，最好轻一点",
 }: RequirementInputProps) {
   const [keyOpen, setKeyOpen] = useState(false);
 
@@ -41,7 +47,7 @@ export default function RequirementInput({
         htmlFor="requirement"
         className="mb-2 block text-sm font-medium text-slate-700"
       >
-        你想用这台笔记本做什么？
+        {question}
       </label>
       <textarea
         id="requirement"
@@ -56,7 +62,7 @@ export default function RequirementInput({
         }}
         rows={3}
         disabled={loading}
-        placeholder="例如：预算 6000 以内，平时写代码，屏幕要看得清，最好轻一点"
+        placeholder={placeholder}
         className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 outline-none focus:border-slate-400 focus:bg-white disabled:opacity-60"
       />
 
@@ -123,22 +129,26 @@ export default function RequirementInput({
 
       <div className="mt-4 border-t border-slate-100 pt-3">
         <p className="mb-2 text-xs text-slate-400">试试这些说法：</p>
-        <div className="flex flex-wrap gap-2">
-          {examples.map((example) => (
-            <button
-              key={example}
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                onTextChange(example);
-                onParse(example);
-              }}
-              className="rounded-full border border-slate-200 px-3 py-1 text-left text-xs text-slate-500 transition hover:border-slate-400 hover:text-slate-800 disabled:opacity-50"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+        {examples.length === 0 ? (
+          <p className="text-xs text-slate-300">（待补充）</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {examples.map((example) => (
+              <button
+                key={example}
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  onTextChange(example);
+                  onParse(example);
+                }}
+                className="rounded-full border border-slate-200 px-3 py-1 text-left text-xs text-slate-500 transition hover:border-slate-400 hover:text-slate-800 disabled:opacity-50"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

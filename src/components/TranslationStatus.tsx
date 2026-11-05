@@ -1,9 +1,19 @@
 "use client";
 
-import { SOURCE_LABELS, type UnifiedParseResult } from "@/lib/ai/types";
+import { SOURCE_LABELS, type ParseSource } from "@/lib/ai/types";
+
+/** 状态条只用到的字段子集，笔记本 / 鼠标两种结果都能传进来 */
+export interface TranslationStatusResult {
+  source: ParseSource;
+  model?: string;
+  elapsedMs: number;
+  confidence: number;
+  fallbackReason?: string;
+  questions: string[];
+}
 
 interface TranslationStatusProps {
-  result: UnifiedParseResult;
+  result: TranslationStatusResult;
   /** 是否处于「后端没配 Key」的演示态，用于额外提示 */
   demoMode: boolean;
 }

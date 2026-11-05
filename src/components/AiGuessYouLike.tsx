@@ -12,6 +12,7 @@ import type { MatchResult } from "@/lib/match";
  * - 进页面后随机抽一台；点左上角 ↺ 再抽一台；
  * - 相邻两次展示的机型不能重复（机型库 > 1 台时保证）；
  * - 卡片完全复用 LaptopCard，参数全部来自机型库，不编造。
+ * - enabled=false（其余类目数据未接入）时渲染为空，待用户补充数据。
  */
 
 /** 随机抽一个下标；传了 avoid 就保证不抽到它 */
@@ -31,7 +32,7 @@ function buildGuessReason(laptop: (typeof laptops)[number]): string {
   return `到手 ${laptop.price} 元 · ${formatCpu(laptop.cpu.name)} · ${laptop.gpu}`;
 }
 
-export default function AiGuessYouLike() {
+export default function AiGuessYouLike({ enabled = true }: { enabled?: boolean }) {
   // 初始为 null，等客户端挂载后再随机，避免 SSR 与客户端随机值不一致（hydration mismatch）。
   // 随机值在微任务里落地，而不是同步 setState——既避开 eslint set-state-in-effect，
   // 又保证首屏服务端与客户端渲染一致（都是 null）。
@@ -50,6 +51,10 @@ export default function AiGuessYouLike() {
   const reroll = useCallback(() => {
     setIndex((prev) => randomIndex(prev ?? undefined));
   }, []);
+
+  if (!enabled) {
+    return null;
+  }
 
   if (index === null || index < 0 || !laptops[index]) {
     return null;
